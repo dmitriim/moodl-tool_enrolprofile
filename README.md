@@ -1,3 +1,7 @@
+<a href="https://github.com/dmitriim/moodl-tool_enrolprofile/actions/workflows/ci.yml?query=branch%3AMOODLE_404_STABLE">
+<img src="https://github.com/dmitriim/moodl-tool_enrolprofile/workflows/ci/badge.svg">
+</a>
+
 # Profile enrolment #
 
 TODO Describe the plugin shortly here.
