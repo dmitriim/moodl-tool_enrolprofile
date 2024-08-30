@@ -14,16 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+namespace tool_enrolprofile\privacy;
+
+use core_privacy\local\metadata\null_provider;
+
 /**
- * Plugin strings are defined here.
+ * Privacy implementation.
  *
  * @package     tool_enrolprofile
- * @category    string
- * @copyright   2024 Your Name <you@example.com>
+ * @copyright   2024 Dmitrii Metelkin <dnmetelk@gmail.comt>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class provider implements null_provider {
 
-defined('MOODLE_INTERNAL') || die();
-
-$string['pluginname'] = 'Profile enrolment';
-$string['privacy:metadata'] = 'Profile enrolment does not store any personal data.';
+    /**
+     * Get the language string identifier with the component's language
+     * file to explain why this plugin stores no data.
+     *
+     * @return  string
+     */
+    public static function get_reason(): string {
+        return 'privacy:metadata';
+    }
+}
