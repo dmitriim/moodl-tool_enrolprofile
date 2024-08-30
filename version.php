@@ -31,5 +31,5 @@ $plugin->requires = 2022112800;
 $plugin->maturity = MATURITY_ALPHA;
 $plugin->supported = [404, 404];
 $plugin->dependencies = [
-    'tool_dynamic_cohorts' => tool_dynamic_cohorts,
+    'tool_dynamic_cohorts' => 2024062400,
 ];
