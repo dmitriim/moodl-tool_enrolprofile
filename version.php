@@ -18,7 +18,7 @@
  * Plugin version and other meta-data are defined here.
  *
  * @package     tool_enrolprofile
- * @copyright   2024 Your Name <you@example.com>
+ * @copyright   2024 Dmitrii Metelkin <dnmetelk@gmail.comt>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
