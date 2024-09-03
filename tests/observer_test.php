@@ -115,6 +115,8 @@ class observer_test extends advanced_testcase {
         core_tag_tag::set_item_tags('core', 'course', $course1->id, \context_course::instance($course1->id), [$tagname]);
 
         $tag = $DB->get_record('tag', ['name' => $tagname]);
+        $this->assertNotEmpty($tag);
+
         $cohort = $DB->get_record('cohort', ['name' => $tagname]);
         $this->assertNotEmpty($cohort);
 
