@@ -9,3 +9,4 @@ jobs:
     with:
       disable_behat: true
       disable_phpcpd: true
+      extra_plugin_runners: 'moodle-plugin-ci add-plugin --branch MOODLE_404_STABLE catalyst/moodle-tool_dynamic_cohorts'
