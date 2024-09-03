@@ -24,8 +24,8 @@ use context_course;
 /**
  * Unit tests for observer class.
  *
- * @package     tool_dynamic_cohorts
- * @copyright   2024 Catalyst IT
+ * @package     tool_enrolprofile
+ * @copyright   2024 Dmitrii Metelkin <dnmetelk@gmail.comt>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
  * @covers     \tool_enrolprofile\observer
