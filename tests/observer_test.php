@@ -107,14 +107,14 @@ class observer_test extends advanced_testcase {
 
         $this->assertEmpty($DB->get_record('cohort', ['name' => $tagname]));
         $this->assertEmpty($DB->get_field('user_info_field', 'param1', ['id' => $prodilefield->id]));
-        $this->assertEmpty($DB->get_record('tag', ['name' => $tagname]));
+        $this->assertEmpty($DB->get_record('tag', ['rawname' => $tagname]));
         $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $tagname]));
         $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $tagname]));
         $this->assertCount(0, $DB->get_records('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort']));
 
-        core_tag_tag::set_item_tags('core', 'course', $course1->id, \context_course::instance($course1->id), [$tagname]);
+        core_tag_tag::set_item_tags('core', 'course', $course1->id, context_course::instance($course1->id), [$tagname]);
 
-        $tag = $DB->get_record('tag', ['name' => $tagname]);
+        $tag = $DB->get_record('tag', ['rawname' => $tagname]);
         $this->assertNotEmpty($tag);
 
         $cohort = $DB->get_record('cohort', ['name' => $tagname]);
