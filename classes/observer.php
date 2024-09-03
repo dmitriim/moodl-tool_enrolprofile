@@ -20,10 +20,6 @@ use core\event\tag_added;
 use stdClass;
 use context_system;
 
-defined('MOODLE_INTERNAL') || die();
-
-require_once($CFG->dirroot . '/cohort/lib.php');
-
 /**
  * Event observer class.
  *

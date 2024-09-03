@@ -22,6 +22,10 @@ use tool_dynamic_cohorts\cohort_manager;
 use tool_dynamic_cohorts\condition_base;
 use tool_dynamic_cohorts\rule;
 
+defined('MOODLE_INTERNAL') || die();
+
+require_once($CFG->dirroot . '/cohort/lib.php');
+
 /**
  * Helper class.
  *
