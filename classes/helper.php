@@ -95,7 +95,10 @@ class helper {
                 $name = 'customfield_' . $customfield->get_field()->get('shortname');
                 $cohortdata->$name = $customfield->export_value();
             }
-            return $cohortdata->customfield_type == $itemtype && $cohortdata->customfield_id == $itemid;
+            $typefieled = 'customfield_' . helper::COHORT_FIELD_TYPE;
+            $idfieled = 'customfield_' . helper::COHORT_FIELD_ID;
+
+            return $cohortdata->$typefieled == $itemtype && $cohortdata->$idfieled == $itemid;
         });
 
         if (!empty($cohorts)) {
