@@ -15,15 +15,26 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Plugin strings are defined here.
+ * Plugin event observers are registered here.
  *
  * @package     tool_enrolprofile
- * @category    string
  * @copyright   2024 Dmitrii Metelkin <dnmetelk@gmail.comt>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$string['pluginname'] = 'Profile enrolment';
-$string['privacy:metadata'] = 'Profile enrolment does not store any personal data.';
+$observers = [
+    [
+        'eventname' => '\core\event\tag_added',
+        'callback' => '\tool_enrolprofile\observer::tag_added',
+    ],
+    [
+        'eventname' => '\core\event\course_created',
+        'callback' => '\tool_enrolprofile\observer::course_created',
+    ],
+    [
+        'eventname' => '\core\event\course_category_created',
+        'callback' => '\tool_enrolprofile\observer::course_category_created',
+    ],
+];
