@@ -36,24 +36,19 @@ require_once($CFG->dirroot . '/cohort/lib.php');
 class helper {
 
     /**
-     * Profile field category.
+     * Tag item type.
      */
-    public const PROFILE_CATEGORY = 'Profile field';
+    public const ITEM_TYPE_TAG = 'tag';
 
     /**
-     * Field shortname
+     * Category item type.
      */
-    public const FIELD_TAG = 'tag';
+    public const ITEM_TYPE_CATEGORY = 'category';
 
     /**
-     * Field shortname
+     * Course item type.
      */
-    public const FIELD_CATEGORY = 'category';
-
-    /**
-     * Field shortname
-     */
-    public const FIELD_COURSE = 'course';
+    public const ITEM_TYPE_COURSE = 'course';
 
     /**
      * Field shortname
@@ -61,7 +56,7 @@ class helper {
     public const FIELD_ENROLLED_UNTIL = 'enrolleduntil';
 
     /**
-     * Course fiel name.
+     * Course field name.
      */
     public const COURSE_NAME = 'fullname';
 
@@ -80,6 +75,39 @@ class helper {
      */
     public const STUDENT_ROLE = 'student';
 
+    /**
+     * Set up configuration item.
+     *
+     * @param stdClass $course Course to set up it for.
+     * @param int $itemid Item ID number
+     * @param string $itemtype Item type (tag, course, category)/
+     * @param string $itemname Item name.
+     */
+    public static function set_up_item(stdClass $course, int $itemid, string $itemtype, string $itemname): void {
+        $cohort = helper::get_cohort_by_item($itemid, $itemtype);
+
+        if (empty($cohort)) {
+            $cohort = new stdClass();
+            $cohort->contextid = context_system::instance()->id;
+            $cohort->name = $itemname;
+            $cohort->idnumber = $itemname;
+            $cohort->description = ucfirst($itemtype) . ' related';
+            $typefieled = 'customfield_' . helper::COHORT_FIELD_TYPE;
+            $cohort->$typefieled = $itemtype;
+            $idfieled = 'customfield_' . helper::COHORT_FIELD_ID;
+            $cohort->$idfieled = $itemid;
+
+            // Create a new cohort.
+            $cohort->id = helper::add_cohort($cohort);
+        }
+
+        // Create a dynamic cohort rule associated with this cohort.
+        helper::add_rule($cohort, $itemtype);
+        // Add a tag to a custom profile field.
+        helper::update_profile_field($itemtype, $itemname);
+        // If yes, create enrolment method for the cohort for a given course.
+        helper::add_enrolment_method($course, $cohort);
+    }
 
     /**
      * Get cohort by provided item type and item id.

@@ -33,6 +33,41 @@ use context_course;
 class observer_test extends advanced_testcase {
 
     /**
+     * Tag profile field for testing.
+     * @var \stdClass
+     */
+    protected $tagprofilefield;
+
+    /**
+     * Course profile field for testing.
+     * @var \stdClass
+     */
+    protected $courseprofilefield;
+
+    /**
+     * Category profile field for testing.
+     * @var \stdClass
+     */
+    protected $categoryprofilefield;
+
+    /**
+     * Set up before every test.
+     *
+     * @return void
+     */
+    public function setUp(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $this->tagprofilefield = $this->add_user_profile_field(helper::ITEM_TYPE_TAG, 'autocomplete');
+        $this->courseprofilefield = $this->add_user_profile_field(helper::ITEM_TYPE_COURSE, 'autocomplete');
+        $this->categoryprofilefield = $this->add_user_profile_field(helper::ITEM_TYPE_CATEGORY, 'autocomplete');
+
+        $this->create_cohort_custom_field(helper::COHORT_FIELD_ID);
+        $this->create_cohort_custom_field(helper::COHORT_FIELD_TYPE);
+    }
+
+    /**
      * A helper function to create a custom profile field.
      *
      * @param string $shortname Short name of the field.
@@ -95,24 +130,18 @@ class observer_test extends advanced_testcase {
     public function test_tag_added() {
         global $DB;
 
-        $this->resetAfterTest();
-        $this->setAdminUser();
-
-        $prodilefield = $this->add_user_profile_field(helper::FIELD_TAG, 'autocomplete');
-        $this->create_cohort_custom_field(helper::COHORT_FIELD_ID);
-        $this->create_cohort_custom_field(helper::COHORT_FIELD_TYPE);
-        $course1 = $this->getDataGenerator()->create_course();
-        $course2 = $this->getDataGenerator()->create_course();
+        $course = $this->getDataGenerator()->create_course();
         $tagname = 'A tag';
 
         $this->assertEmpty($DB->get_record('cohort', ['name' => $tagname]));
-        $this->assertEmpty($DB->get_field('user_info_field', 'param1', ['id' => $prodilefield->id]));
+        $this->assertEmpty($DB->get_field('user_info_field', 'param1', ['id' => $this->tagprofilefield->id]));
         $this->assertEmpty($DB->get_record('tag', ['rawname' => $tagname]));
         $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $tagname]));
-        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $tagname]));
-        $this->assertCount(0, $DB->get_records('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort']));
 
-        core_tag_tag::set_item_tags('core', 'course', $course1->id, context_course::instance($course1->id), [$tagname]);
+        // Should be already course and category cohorts.
+        $this->assertCount(2, $DB->get_records('enrol', ['courseid' => $course->id, 'enrol' => 'cohort']));
+
+        core_tag_tag::set_item_tags('core', 'course', $course->id, context_course::instance($course->id), [$tagname]);
 
         $tag = $DB->get_record('tag', ['rawname' => $tagname]);
         $this->assertNotEmpty($tag);
@@ -120,7 +149,7 @@ class observer_test extends advanced_testcase {
         $cohort = $DB->get_record('cohort', ['name' => $tagname]);
         $this->assertNotEmpty($cohort);
 
-        $cohort = cohort_get_cohort($cohort->id, context_course::instance($course1->id), true);
+        $cohort = cohort_get_cohort($cohort->id, context_course::instance($course->id), true);
         foreach ($cohort->customfields as $customfield) {
             if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_ID) {
                 $this->assertSame($tag->id, $customfield->export_value());
@@ -130,7 +159,7 @@ class observer_test extends advanced_testcase {
             }
         }
 
-        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $prodilefield->id]);
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->tagprofilefield->id]);
         $this->assertNotEmpty($profilefielddata);
         $this->assertTrue(in_array($tagname, explode("\n", $profilefielddata)));
 
@@ -141,11 +170,84 @@ class observer_test extends advanced_testcase {
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
         $this->assertCount(2, $conditions);
 
-        $this->assertCount(1, $DB->get_records('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort']));
-        $enrol = $DB->get_record('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort']);
+        $this->assertCount(3, $DB->get_records('enrol', ['courseid' => $course->id, 'enrol' => 'cohort']));
+        $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
-        $this->assertEquals($cohort->id, $enrol->customint1);
+    }
 
-        core_tag_tag::set_item_tags('core', 'course', $course2->id, \context_course::instance($course1->id), [$tagname]);
+    /**
+     * Check logic when creating a course.
+     * @return void
+     */
+    public function test_course_created() {
+        global $DB;
+
+        $coursename = 'Course name';
+        $this->assertEmpty($DB->get_record('cohort', ['name' => $coursename]));
+        $this->assertEmpty($DB->get_field('user_info_field', 'param1', ['id' => $this->courseprofilefield->id]));
+        $this->assertEmpty($DB->get_record('tag', ['rawname' => $coursename]));
+        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $coursename]));
+
+        $course = $this->getDataGenerator()->create_course(['fullname' => $coursename]);
+
+        // Should be course and category cohorts.
+        $this->assertCount(2, $DB->get_records('enrol', ['courseid' => $course->id, 'enrol' => 'cohort']));
+
+        // Check everything about course cohort.
+        $coursecohort = $DB->get_record('cohort', ['name' => $coursename]);
+        $this->assertNotEmpty($coursecohort);
+
+        $cohort = cohort_get_cohort($coursecohort->id, context_course::instance($course->id), true);
+        foreach ($cohort->customfields as $customfield) {
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_ID) {
+                $this->assertSame($course->id, $customfield->export_value());
+            }
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_TYPE) {
+                $this->assertSame('course', $customfield->export_value());
+            }
+        }
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->courseprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($coursename, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $coursename]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($cohort->id, $rule->cohortid);
+        $this->assertEquals(1, $rule->enabled);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assertCount(2, $conditions);
+
+        $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
+        $this->assertNotEmpty($enrol);
+
+        // Check everything about category cohort.
+        $category = $DB->get_record('course_categories', ['id' => $course->category]);
+        $categorycohort = $DB->get_record('cohort', ['name' => $category->name]);
+        $this->assertNotEmpty($categorycohort);
+
+        $cohort = cohort_get_cohort($categorycohort->id, context_course::instance($category->id), true);
+        foreach ($cohort->customfields as $customfield) {
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_ID) {
+                $this->assertSame($category->id, $customfield->export_value());
+            }
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_TYPE) {
+                $this->assertSame('category', $customfield->export_value());
+            }
+        }
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->categoryprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($category->name, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $category->name]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($cohort->id, $rule->cohortid);
+        $this->assertEquals(1, $rule->enabled);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assertCount(2, $conditions);
+
+        $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
+        $this->assertNotEmpty($enrol);
     }
 }

@@ -16,9 +16,8 @@
 
 namespace tool_enrolprofile;
 
+use core\event\course_created;
 use core\event\tag_added;
-use stdClass;
-use context_system;
 
 /**
  * Event observer class.
@@ -43,36 +42,23 @@ class observer {
 
         $tagid = $event->other['tagid'];
         $tagname = $event->other['tagrawname'];
+        $course = get_course($event->other['itemid']);
 
-        $courseid = $event->other['itemid'];
-        $course = get_course($courseid);
+        helper::set_up_item($course, $tagid, 'tag', $tagname);
+    }
 
-        $cohort = new stdClass();
-        $cohort->contextid = context_system::instance()->id;
-        $cohort->name = $tagname;
-        $cohort->idnumber = $tagname;
-        $cohort->description = 'Tag related';
-        $typefieled = 'customfield_' . helper::COHORT_FIELD_TYPE;
-        $cohort->$typefieled = 'tag';
-        $idfieled = 'customfield_' . helper::COHORT_FIELD_ID;
-        $cohort->$idfieled = $tagid;
+    /**
+     * Process course_created event.
+     *
+     * @param course_created $event The event.
+     */
+    public static function course_created(course_created $event): void {
+        global $DB;
 
-        // Check if cohort already exists.
-        $existingcohort = helper::get_cohort_by_item($tagid, 'tag');
+        $course = get_course($event->courseid);
+        helper::set_up_item($course, $course->id, 'course', $course->{helper::COURSE_NAME});
 
-        // If not.
-        if (empty($existingcohort)) {
-            // Create a new cohort.
-            $cohort->id = helper::add_cohort($cohort);
-            // Create a dynamic cohort rule associated with this cohort.
-            helper::add_rule($cohort, helper::FIELD_TAG);
-            // Add a tag to a custom profile field.
-            helper::update_profile_field(helper::FIELD_TAG, $tagname);
-            // Create enrolment method for the cohort for a given course.
-            helper::add_enrolment_method($course, $cohort);
-        } else {
-            // If yes, create enrolment method for the cohort for a given course.
-            helper::add_enrolment_method($course, $existingcohort);
-        }
+        $category = $DB->get_record('course_categories', ['id' => $course->category]);
+        helper::set_up_item($course, $category->id, 'category', $category->name);
     }
 }
