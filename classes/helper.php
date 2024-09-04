@@ -84,7 +84,7 @@ class helper {
      * @param string $itemname Item name.
      */
     public static function set_up_item(stdClass $course, int $itemid, string $itemtype, string $itemname): void {
-        $cohort = helper::get_cohort_by_item($itemid, $itemtype);
+        $cohort = self::get_cohort_by_item($itemid, $itemtype);
 
         if (empty($cohort)) {
             $cohort = new stdClass();
@@ -92,21 +92,21 @@ class helper {
             $cohort->name = $itemname;
             $cohort->idnumber = $itemname;
             $cohort->description = ucfirst($itemtype) . ' related';
-            $typefieled = 'customfield_' . helper::COHORT_FIELD_TYPE;
+            $typefieled = 'customfield_' . self::COHORT_FIELD_TYPE;
             $cohort->$typefieled = $itemtype;
-            $idfieled = 'customfield_' . helper::COHORT_FIELD_ID;
+            $idfieled = 'customfield_' . self::COHORT_FIELD_ID;
             $cohort->$idfieled = $itemid;
 
             // Create a new cohort.
-            $cohort->id = helper::add_cohort($cohort);
+            $cohort->id = self::add_cohort($cohort);
         }
 
         // Create a dynamic cohort rule associated with this cohort.
-        helper::add_rule($cohort, $itemtype);
+        self::add_rule($cohort, $itemtype);
         // Add a tag to a custom profile field.
-        helper::update_profile_field($itemtype, $itemname);
+        self::update_profile_field($itemtype, $itemname);
         // If yes, create enrolment method for the cohort for a given course.
-        helper::add_enrolment_method($course, $cohort);
+        self::add_enrolment_method($course, $cohort);
     }
 
     /**
@@ -127,8 +127,8 @@ class helper {
                 $name = 'customfield_' . $customfield->get_field()->get('shortname');
                 $cohortdata->$name = $customfield->export_value();
             }
-            $typefieled = 'customfield_' . helper::COHORT_FIELD_TYPE;
-            $idfieled = 'customfield_' . helper::COHORT_FIELD_ID;
+            $typefieled = 'customfield_' . self::COHORT_FIELD_TYPE;
+            $idfieled = 'customfield_' . self::COHORT_FIELD_ID;
 
             return $cohortdata->$typefieled == $itemtype && $cohortdata->$idfieled == $itemid;
         });
