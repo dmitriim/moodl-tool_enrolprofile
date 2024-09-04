@@ -78,12 +78,13 @@ class helper {
     /**
      * Set up configuration item.
      *
-     * @param stdClass $course Course to set up it for.
      * @param int $itemid Item ID number
-     * @param string $itemtype Item type (tag, course, category)/
+     * @param string $itemtype Item type (tag, course, category).
      * @param string $itemname Item name.
+     * @param stdClass|null $course Course to set up enrolment method. If not set, the no enrolment method will be created.
+     * @return void
      */
-    public static function set_up_item(stdClass $course, int $itemid, string $itemtype, string $itemname): void {
+    public static function set_up_item(int $itemid, string $itemtype, string $itemname, ?stdClass $course = null): void {
         $cohort = self::get_cohort_by_item($itemid, $itemtype);
 
         if (empty($cohort)) {
@@ -105,8 +106,11 @@ class helper {
         self::add_rule($cohort, $itemtype);
         // Add a tag to a custom profile field.
         self::update_profile_field($itemtype, $itemname);
-        // If yes, create enrolment method for the cohort for a given course.
-        self::add_enrolment_method($course, $cohort);
+
+        // Create enrolment method for the cohort for a given course.
+        if (!empty($course)) {
+            self::add_enrolment_method($course, $cohort);
+        }
     }
 
     /**

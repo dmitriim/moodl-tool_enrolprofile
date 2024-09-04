@@ -16,6 +16,7 @@
 
 namespace tool_enrolprofile;
 
+use core\event\course_category_created;
 use core\event\course_created;
 use core\event\tag_added;
 
@@ -44,7 +45,7 @@ class observer {
         $tagname = $event->other['tagrawname'];
         $course = get_course($event->other['itemid']);
 
-        helper::set_up_item($course, $tagid, 'tag', $tagname);
+        helper::set_up_item($tagid, helper::ITEM_TYPE_TAG, $tagname, $course);
     }
 
     /**
@@ -56,9 +57,21 @@ class observer {
         global $DB;
 
         $course = get_course($event->courseid);
-        helper::set_up_item($course, $course->id, 'course', $course->{helper::COURSE_NAME});
+        helper::set_up_item($course->id, helper::ITEM_TYPE_COURSE, $course->{helper::COURSE_NAME}, $course);
 
         $category = $DB->get_record('course_categories', ['id' => $course->category]);
-        helper::set_up_item($course, $category->id, 'category', $category->name);
+        helper::set_up_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name, $course);
+    }
+
+    /**
+     * Process course_category_created event.
+     *
+     * @param course_category_created $event The event.
+     */
+    public static function course_category_created(course_category_created $event): void {
+        global $DB;
+
+        $category = $DB->get_record('course_categories', ['id' => $event->objectid]);
+        helper::set_up_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
     }
 }
