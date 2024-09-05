@@ -175,6 +175,27 @@ class observer_test extends advanced_testcase {
     }
 
     /**
+     * Check logic when removing a tag.
+     */
+    public function test_tag_removed(): void {
+        global $DB;
+
+        $course = $this->getDataGenerator()->create_course();
+        $tagname = 'A tag';
+
+        core_tag_tag::set_item_tags('core', 'course', $course->id, context_course::instance($course->id), [$tagname]);
+
+        $cohort = $DB->get_record('cohort', ['name' => $tagname]);
+        $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
+        $this->assertNotEmpty($enrol);
+
+        core_tag_tag::remove_item_tag('core', 'course', $course->id, $tagname);
+
+        $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
+        $this->assertEmpty($enrol);
+    }
+
+    /**
      * Check logic when creating a course.
      */
     public function test_course_created(): void {

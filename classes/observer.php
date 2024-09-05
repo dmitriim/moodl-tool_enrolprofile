@@ -19,6 +19,7 @@ namespace tool_enrolprofile;
 use core\event\course_category_created;
 use core\event\course_created;
 use core\event\tag_added;
+use core\event\tag_removed;
 
 /**
  * Event observer class.
@@ -46,6 +47,23 @@ class observer {
         $course = get_course($event->other['itemid']);
 
         helper::set_up_item($tagid, helper::ITEM_TYPE_TAG, $tagname, $course);
+    }
+
+    /**
+     * Process tag_removed event.
+     *
+     * @param tag_removed $event The event.
+     */
+    public static function tag_removed(tag_removed $event): void {
+        // Check context is course context.
+        $context = $event->get_context();
+        if ($context->contextlevel != CONTEXT_COURSE && $event->other['itemtype'] != 'course') {
+            return;
+        }
+
+        $tagid = $event->other['tagid'];
+        $course = get_course($event->other['itemid']);
+        helper::remove_enrolment_method($course, $tagid, helper::ITEM_TYPE_TAG);
     }
 
     /**

@@ -155,9 +155,10 @@ class helper {
     public static function add_enrolment_method(stdClass $course, stdClass $cohort): void {
         global $DB;
 
-        $studentrole = $DB->get_record('role', ['shortname' => self::STUDENT_ROLE]);
+        $studentrole = self::get_student_role();
 
         $fields = [
+            'enrol' => 'cohort',
             'customint1' => $cohort->id,
             'roleid' => $studentrole->id,
             'courseid' => $course->id,
@@ -166,6 +167,41 @@ class helper {
         if (!$DB->record_exists('enrol', $fields)) {
             $enrol = enrol_get_plugin('cohort');
             $enrol->add_instance($course, $fields);
+        }
+    }
+
+    /**
+     * A helper  to remove enrolment method from a given course based on item details.
+     *
+     * @param stdClass $course Given course.
+     * @param int $itemid Item ID.
+     * @param string $itemtype Item type (tag, course, category).
+     */
+    public static function remove_enrolment_method(stdClass $course, int $itemid, string $itemtype): void {
+        global $DB;
+
+        $cohort = self::get_cohort_by_item($itemid, $itemtype);
+
+        if ($cohort) {
+            $studentrole = self::get_student_role();
+
+            $fields = [
+                'enrol' => 'cohort',
+                'customint1' => $cohort->id,
+                'roleid' => $studentrole->id,
+                'courseid' => $course->id,
+            ];
+
+            $instances = $DB->get_records('enrol', $fields);
+
+            if ($instances) {
+                $enrol = enrol_get_plugin('cohort');
+
+                foreach ($instances as $instance) {
+                    // Remove enrolment method.
+                    $enrol->delete_instance($instance);
+                }
+            }
         }
     }
 
@@ -261,5 +297,16 @@ class helper {
 
         $rule->set('enabled', 1);
         $rule->save();
+    }
+
+    /**
+     * Returns a student role.
+     *
+     * @return stdClass
+     */
+    public static function get_student_role(): stdClass {
+        global $DB;
+
+        return $DB->get_record('role', ['shortname' => self::STUDENT_ROLE]);
     }
 }
