@@ -314,6 +314,53 @@ class observer_test extends advanced_testcase {
     }
 
     /**
+     * Check logic when deleting a course.
+     */
+    public function test_course_deleted(): void {
+        global $DB;
+
+        $coursename = 'Course name';
+        $course = $this->getDataGenerator()->create_course(['fullname' => $coursename]);
+
+        // Should be course and category cohorts.
+        $this->assertCount(2, $DB->get_records('enrol', ['courseid' => $course->id, 'enrol' => 'cohort']));
+
+        $coursecohort = $DB->get_record('cohort', ['name' => $coursename]);
+        $this->assertNotEmpty($coursecohort);
+
+        $cohort = cohort_get_cohort($coursecohort->id, context_course::instance($course->id), true);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->courseprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($coursename, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $coursename]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($cohort->id, $rule->cohortid);
+        $this->assertEquals(1, $rule->enabled);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assertCount(2, $conditions);
+
+        $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
+        $this->assertNotEmpty($enrol);
+
+        delete_course($course->id, false);
+
+        $coursecohort = $DB->get_record('cohort', ['name' => $coursename]);
+        $this->assertEmpty($coursecohort);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->courseprofilefield->id]);
+        $this->assertFalse(in_array($coursename, explode("\n", $profilefielddata)));
+
+        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $coursename]));
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assertCount(0, $conditions);
+
+        $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
+        $this->assertEmpty($enrol);
+    }
+
+    /**
      * Check logic when creating a course category.
      */
     public function test_course_category_created(): void {
