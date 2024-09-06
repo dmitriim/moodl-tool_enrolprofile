@@ -20,6 +20,9 @@ use core\event\course_category_created;
 use core\event\course_created;
 use core\event\tag_added;
 use core\event\tag_removed;
+use core\event\tag_deleted;
+use tool_dynamic_cohorts\rule;
+use tool_dynamic_cohorts\rule_manager;
 
 /**
  * Event observer class.
@@ -46,7 +49,7 @@ class observer {
         $tagname = $event->other['tagrawname'];
         $course = get_course($event->other['itemid']);
 
-        helper::set_up_item($tagid, helper::ITEM_TYPE_TAG, $tagname, $course);
+        helper::add_item($tagid, helper::ITEM_TYPE_TAG, $tagname, $course);
     }
 
     /**
@@ -63,7 +66,18 @@ class observer {
 
         $tagid = $event->other['tagid'];
         $course = get_course($event->other['itemid']);
-        helper::remove_enrolment_method($course, $tagid, helper::ITEM_TYPE_TAG);
+        helper::remove_enrolment_method($tagid, helper::ITEM_TYPE_TAG, $course->id);
+    }
+
+    /**
+     * Process tag_deleted event.
+     *
+     * @param tag_deleted $event The event.
+     */
+    public static function tag_deleted(tag_deleted $event): void {
+        $tagid = $event->objectid;
+        $tagname = $event->other['rawname'];
+        helper::remove_item($tagid, helper::ITEM_TYPE_TAG, $tagname);
     }
 
     /**
@@ -75,10 +89,10 @@ class observer {
         global $DB;
 
         $course = get_course($event->courseid);
-        helper::set_up_item($course->id, helper::ITEM_TYPE_COURSE, $course->{helper::COURSE_NAME}, $course);
+        helper::add_item($course->id, helper::ITEM_TYPE_COURSE, $course->{helper::COURSE_NAME}, $course);
 
         $category = $DB->get_record('course_categories', ['id' => $course->category]);
-        helper::set_up_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name, $course);
+        helper::add_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name, $course);
     }
 
     /**
@@ -90,6 +104,6 @@ class observer {
         global $DB;
 
         $category = $DB->get_record('course_categories', ['id' => $event->objectid]);
-        helper::set_up_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
+        helper::add_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
     }
 }

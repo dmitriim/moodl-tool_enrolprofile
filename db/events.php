@@ -30,6 +30,14 @@ $observers = [
         'callback' => '\tool_enrolprofile\observer::tag_added',
     ],
     [
+        'eventname' => '\core\event\tag_removed',
+        'callback' => '\tool_enrolprofile\observer::tag_removed',
+    ],
+    [
+        'eventname' => '\core\event\tag_deleted',
+        'callback' => '\tool_enrolprofile\observer::tag_deleted',
+    ],
+    [
         'eventname' => '\core\event\course_created',
         'callback' => '\tool_enrolprofile\observer::course_created',
     ],
@@ -37,8 +45,5 @@ $observers = [
         'eventname' => '\core\event\course_category_created',
         'callback' => '\tool_enrolprofile\observer::course_category_created',
     ],
-    [
-        'eventname' => '\core\event\tag_removed',
-        'callback' => '\tool_enrolprofile\observer::tag_removed',
-    ],
+
 ];
