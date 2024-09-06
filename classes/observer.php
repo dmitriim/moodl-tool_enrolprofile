@@ -18,6 +18,7 @@ namespace tool_enrolprofile;
 
 use core\event\course_category_created;
 use core\event\course_created;
+use core\event\course_deleted;
 use core\event\tag_added;
 use core\event\tag_removed;
 use core\event\tag_deleted;
@@ -93,6 +94,17 @@ class observer {
 
         $category = $DB->get_record('course_categories', ['id' => $course->category]);
         helper::add_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name, $course);
+    }
+
+    /**
+     * Process course_deleted event.
+     *
+     * @param course_deleted $event The event.
+     */
+    public static function course_deleted(course_deleted $event): void {
+        $courseid = $event->courseid;
+        $coursename = $event->other['fullname'];
+        helper::remove_item($courseid, helper::ITEM_TYPE_COURSE, $coursename);
     }
 
     /**
