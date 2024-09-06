@@ -196,6 +196,50 @@ class observer_test extends advanced_testcase {
     }
 
     /**
+     * Check logic when deleting a tag.
+     */
+    public function test_tag_deleted(): void {
+        global $DB;
+
+        $course = $this->getDataGenerator()->create_course();
+        $tagname = 'A tag';
+
+        core_tag_tag::set_item_tags('core', 'course', $course->id, context_course::instance($course->id), [$tagname]);
+
+        $cohort = $DB->get_record('cohort', ['name' => $tagname]);
+        $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
+        $this->assertNotEmpty($enrol);
+
+        $tag = $DB->get_record('tag', ['rawname' => $tagname]);
+        $this->assertNotEmpty($tag);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->tagprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($tagname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $tagname]);
+        $this->assertNotEmpty($rule);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assertCount(2, $conditions);
+
+        core_tag_tag::delete_tags([$tag->id]);
+
+        // Tag deleted.
+        $this->assertEmpty($DB->get_record('tag', ['rawname' => $tagname]));
+        // Cohort deleted.
+        $this->assertEmpty($DB->get_record('cohort', ['name' => $tagname]));
+        // Enrolment methods deleted.
+        $this->assertEmpty($DB->get_records('enrol', ['enrol' => 'cohort', 'customint1' => $cohort->id]));
+        // Rule and conditions deleted.
+        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $tagname]));
+        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['cohortid' => $cohort->id]));
+        $this->assertEmpty($DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]));
+        // Profile field data updated.
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->tagprofilefield->id]);
+        $this->assertTrue(!in_array($tagname, explode("\n", $profilefielddata)));
+    }
+
+    /**
      * Check logic when creating a course.
      */
     public function test_course_created(): void {

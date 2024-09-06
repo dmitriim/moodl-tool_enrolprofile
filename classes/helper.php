@@ -21,6 +21,7 @@ use stdClass;
 use tool_dynamic_cohorts\cohort_manager;
 use tool_dynamic_cohorts\condition_base;
 use tool_dynamic_cohorts\rule;
+use tool_dynamic_cohorts\rule_manager;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -76,7 +77,7 @@ class helper {
     public const STUDENT_ROLE = 'student';
 
     /**
-     * Set up configuration item.
+     * Add a new configuration item.
      *
      * @param int $itemid Item ID number
      * @param string $itemtype Item type (tag, course, category).
@@ -84,7 +85,7 @@ class helper {
      * @param stdClass|null $course Course to set up enrolment method. If not set, the no enrolment method will be created.
      * @return void
      */
-    public static function set_up_item(int $itemid, string $itemtype, string $itemname, ?stdClass $course = null): void {
+    public static function add_item(int $itemid, string $itemtype, string $itemname, ?stdClass $course = null): void {
         $cohort = self::get_cohort_by_item($itemid, $itemtype);
 
         if (empty($cohort)) {
@@ -105,11 +106,41 @@ class helper {
         // Create a dynamic cohort rule associated with this cohort.
         self::add_rule($cohort, $itemtype);
         // Add a tag to a custom profile field.
-        self::update_profile_field($itemtype, $itemname);
+        self::add_profile_field_item($itemtype, $itemname);
 
         // Create enrolment method for the cohort for a given course.
         if (!empty($course)) {
             self::add_enrolment_method($course, $cohort);
+        }
+    }
+
+    /**
+     * Remove configuration item.
+     *
+     * @param int $itemid Item ID number
+     * @param string $itemtype Item type (tag, course, category).
+     * @param string $itemname Item name.
+     * @return void
+     */
+    public static function remove_item(int $itemid, string $itemtype, string $itemname): void {
+        global $DB;
+
+        // Find cohort.
+        $cohort = self::get_cohort_by_item($itemid, $itemtype);
+        if ($cohort) {
+            // Find all courses with this cohort and delete enrolment method.
+            self::remove_enrolment_method($itemid, $itemtype);
+            // Find a rule with this cohort and delete rule and conditions.
+            $rules = $DB->get_records('tool_dynamic_cohorts', ['cohortid' => $cohort->id]);
+            foreach ($rules as $rule) {
+                $rule = rule::get_record(['id' => $rule->id]);
+                rule_manager::delete_rule($rule);
+            }
+            // Delete cohort.
+            cohort_delete_cohort($cohort);
+            // Delete tag value from custom profile field list.
+            self::delete_profile_field_item($itemtype, $itemname);
+            // Clean up user data?
         }
     }
 
@@ -173,11 +204,11 @@ class helper {
     /**
      * A helper  to remove enrolment method from a given course based on item details.
      *
-     * @param stdClass $course Given course.
      * @param int $itemid Item ID.
      * @param string $itemtype Item type (tag, course, category).
+     * @param int $courseid Optional course ID.
      */
-    public static function remove_enrolment_method(stdClass $course, int $itemid, string $itemtype): void {
+    public static function remove_enrolment_method(int $itemid, string $itemtype, int $courseid = 0): void {
         global $DB;
 
         $cohort = self::get_cohort_by_item($itemid, $itemtype);
@@ -189,8 +220,11 @@ class helper {
                 'enrol' => 'cohort',
                 'customint1' => $cohort->id,
                 'roleid' => $studentrole->id,
-                'courseid' => $course->id,
             ];
+
+            if (!empty($courseid)) {
+                $fields['courseid'] = $courseid;
+            }
 
             $instances = $DB->get_records('enrol', $fields);
 
@@ -213,20 +247,51 @@ class helper {
      *
      * @return void
      */
-    public static function update_profile_field(string $shortname, string $newitem): void {
+    public static function add_profile_field_item(string $shortname, string $newitem): void {
         global $DB;
 
         $field = $DB->get_record('user_info_field', ['shortname' => $shortname]);
-        $fielddata = [];
-        if (!empty($field->param1)) {
-            $fielddata = explode("\n", $field->param1);
-        }
 
-        if (!in_array($newitem, $fielddata)) {
-            $fielddata[] = $newitem;
-            sort($fielddata);
-            $field->param1 = implode("\n", $fielddata);
-            $DB->update_record('user_info_field', $field);
+        if ($field) {
+            $fielddata = [];
+            if (!empty($field->param1)) {
+                $fielddata = explode("\n", $field->param1);
+            }
+
+            if (!in_array($newitem, $fielddata)) {
+                $fielddata[] = $newitem;
+                sort($fielddata);
+                $field->param1 = implode("\n", $fielddata);
+                $DB->update_record('user_info_field', $field);
+            }
+        }
+    }
+
+    /**
+     * Delete a given item from profile field.
+     *
+     * @param string $shortname Field short name.
+     * @param string $itemname A new item to add to the field.
+     *
+     * @return void
+     */
+    public static function delete_profile_field_item(string $shortname, string $itemname): void {
+        global $DB;
+
+        $field = $DB->get_record('user_info_field', ['shortname' => $shortname]);
+        if ($field) {
+            $fielddata = [];
+            if (!empty($field->param1)) {
+                $fielddata = explode("\n", $field->param1);
+            }
+
+            if (in_array($itemname, $fielddata)) {
+                $key = array_search($itemname, $fielddata);
+                unset($fielddata[$key]);
+                sort($fielddata);
+                $field->param1 = implode("\n", $fielddata);
+                $DB->update_record('user_info_field', $field);
+            }
         }
     }
 
