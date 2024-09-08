@@ -398,4 +398,52 @@ class observer_test extends advanced_testcase {
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
         $this->assertCount(2, $conditions);
     }
+
+    /**
+     * Check logic when deleting a course category.
+     */
+    public function test_course_category_deleted(): void {
+        global $DB;
+
+        $categoryname = 'Category name';
+        $this->assertEmpty($DB->get_record('cohort', ['name' => $categoryname]));
+        $this->assertEmpty($DB->get_field('user_info_field', 'param1', ['id' => $this->categoryprofilefield->id]));
+        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $categoryname]));
+
+        $category = $this->getDataGenerator()->create_category(['name' => $categoryname]);
+        $course = $this->getDataGenerator()->create_course(['category' => $category->id]);
+
+        // Check everything about category cohort.
+        $categorycohort = $DB->get_record('cohort', ['name' => $category->name]);
+        $this->assertNotEmpty($categorycohort);
+
+        $cohort = cohort_get_cohort($categorycohort->id, \context_coursecat::instance($category->id), true);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->categoryprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($categoryname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $categoryname]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($cohort->id, $rule->cohortid);
+        $this->assertEquals(1, $rule->enabled);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assertCount(2, $conditions);
+
+        $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
+        $this->assertNotEmpty($enrol);
+
+        $category->delete_full(false);
+
+        $categorycohort = $DB->get_record('cohort', ['name' => $categoryname]);
+        $this->assertEmpty($categorycohort);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->categoryprofilefield->id]);
+        $this->assertFalse(in_array($categoryname, explode("\n", $profilefielddata)));
+        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $categoryname]));
+        $this->assertEmpty($DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]));
+
+        $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
+        $this->assertEmpty($enrol);
+    }
 }
