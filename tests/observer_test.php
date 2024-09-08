@@ -20,6 +20,7 @@ use advanced_testcase;
 use core_customfield\field_controller;
 use core_tag_tag;
 use context_course;
+use core_user;
 
 /**
  * Unit tests for observer class.
@@ -173,6 +174,134 @@ class observer_test extends advanced_testcase {
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
     }
+
+    /**
+     * Check logic when updating a tag.
+     */
+    public function test_tag_updated(): void {
+        global $DB;
+
+        $course = $this->getDataGenerator()->create_course();
+        $profilefield = 'profile_field_' . helper::ITEM_TYPE_TAG;
+        $tagname = 'A tag';
+
+        core_tag_tag::set_item_tags('core', 'course', $course->id, context_course::instance($course->id), [
+            $tagname,
+            'Not tag',
+            'Another tag',
+        ]);
+
+        $tag = $DB->get_record('tag', ['rawname' => $tagname]);
+        $this->assertNotEmpty($tag);
+
+        $cohort = $DB->get_record('cohort', ['name' => $tagname]);
+        $this->assertNotEmpty($cohort);
+
+        $cohort = cohort_get_cohort($cohort->id, context_course::instance($course->id), true);
+        foreach ($cohort->customfields as $customfield) {
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_ID) {
+                $this->assertSame($tag->id, $customfield->export_value());
+            }
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_TYPE) {
+                $this->assertSame(helper::ITEM_TYPE_TAG, $customfield->export_value());
+            }
+        }
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->tagprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($tagname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $tagname]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($cohort->id, $rule->cohortid);
+
+        $user1 = $this->getDataGenerator()->create_user();
+        profile_save_data((object)[
+            'id' => $user1->id,
+            $profilefield => [
+                'Not tag',
+                $tagname,
+                'Another tag',
+            ]
+        ]);
+
+        $user2 = $this->getDataGenerator()->create_user();
+        profile_save_data((object)[
+            'id' => $user2->id,
+            $profilefield => [
+                $tagname,
+                'Another tag',
+            ]
+        ]);
+
+        profile_load_data($user1);
+        $this->assertSame([
+                'Not tag',
+                $tagname,
+                'Another tag',
+            ], $user1->$profilefield
+        );
+        profile_load_data($user2);
+        $this->assertSame([
+                $tagname,
+                'Another tag',
+            ], $user2->$profilefield
+        );
+
+        // Update name of the tag.
+        $newtagname = 'A new tag name';
+        core_tag_tag::get($tag->id, '*')->update(array('rawname' => $newtagname));
+
+        $tag = $DB->get_record('tag', ['rawname' => $tagname]);
+        $this->assertEmpty($tag);
+
+        $tag = $DB->get_record('tag', ['rawname' => $newtagname]);
+        $this->assertNotEmpty($tag);
+
+        $cohort = $DB->get_record('cohort', ['name' => $tagname]);
+        $this->assertEmpty($cohort);
+
+        $cohort = $DB->get_record('cohort', ['name' => $newtagname]);
+        $this->assertNotEmpty($cohort);
+
+        $cohort = cohort_get_cohort($cohort->id, context_course::instance($course->id), true);
+        foreach ($cohort->customfields as $customfield) {
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_ID) {
+                $this->assertSame($tag->id, $customfield->export_value());
+            }
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_TYPE) {
+                $this->assertSame(helper::ITEM_TYPE_TAG, $customfield->export_value());
+            }
+        }
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->tagprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertFalse(in_array($tagname, explode("\n", $profilefielddata)));
+        $this->assertTrue(in_array($newtagname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $tagname]);
+        $this->assertEmpty($rule);
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $newtagname]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($cohort->id, $rule->cohortid);
+
+        profile_load_data($user1);
+        $this->assertSame([
+                'Not tag',
+                $newtagname,
+                'Another tag',
+            ], $user1->$profilefield
+        );
+        profile_load_data($user2);
+        $this->assertSame([
+                $newtagname,
+                'Another tag',
+            ], $user2->$profilefield
+        );
+
+    }
+
 
     /**
      * Check logic when removing a tag.

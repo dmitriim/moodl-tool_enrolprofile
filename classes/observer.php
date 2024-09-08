@@ -23,8 +23,8 @@ use core\event\course_deleted;
 use core\event\tag_added;
 use core\event\tag_removed;
 use core\event\tag_deleted;
+use core\event\tag_updated;
 use tool_dynamic_cohorts\rule;
-use tool_dynamic_cohorts\rule_manager;
 
 /**
  * Event observer class.
@@ -80,6 +80,17 @@ class observer {
         $tagid = $event->objectid;
         $tagname = $event->other['rawname'];
         helper::remove_item($tagid, helper::ITEM_TYPE_TAG, $tagname);
+    }
+
+    /**
+     * Process tag_deleted event.
+     *
+     * @param tag_updated $event The event.
+     */
+    public static function tag_updated(tag_updated $event): void {
+        $tagid = $event->objectid;
+        $tagnewname = $event->other['rawname'];
+        helper::rename_item($tagid, helper::ITEM_TYPE_TAG, $tagnewname);
     }
 
     /**
