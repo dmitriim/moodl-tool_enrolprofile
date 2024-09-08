@@ -145,6 +145,61 @@ class helper {
     }
 
     /**
+     * Rename item.
+     *
+     * @param int $itemid Item ID.
+     * @param string $itemtype Item type (tag, course, category).
+     * @param string $newname Item new name.
+     * @return void
+     */
+    public static function rename_item(int $itemid, string $itemtype, string $newname): void {
+        global $DB;
+
+        // Get cohort to figure out an old name.
+        $cohort = self::get_cohort_by_item($itemid, $itemtype);
+
+        if ($cohort && $cohort->name != $newname) {
+            $oldname = $cohort->name;
+
+            // Update cohort with a new name.
+            $cohort->name = $newname;
+            unset($cohort->customfields);
+            cohort_update_cohort($cohort);
+
+            // Update rule with a new name.
+            $rule = rule::get_record(['cohortid' => $cohort->id]);
+            if ($rule) {
+                $rule->set('name', $newname);
+                $rule->save();
+            }
+
+            // Update custom profile field.
+            self::update_profile_field_item($itemtype, $oldname, $newname);
+
+            // Update users data. TODO: move to adhoc task.
+            $field = $DB->get_record('user_info_field', ['shortname' => $itemtype]);
+
+            if ($field) {
+                $fieldselect = $DB->sql_like('data', ':value', false, false);
+                $value = $DB->sql_like_escape($oldname);
+                $params['value'] = "%$value%";
+                $params['fieldid'] = $field->id;
+
+                $where = "$fieldselect AND fieldid = :fieldid";
+                $usersdata = $DB->get_records_select('user_info_data', $where, $params);
+
+                foreach ($usersdata as $userdata) {
+                    $data = explode(', ', $userdata->data);
+                    $key = array_search($oldname, $data);
+                    $data[$key] = $newname;
+                    $userdata->data = implode(', ', $data);
+                    $DB->update_record('user_info_data', $userdata);
+                }
+            }
+        }
+    }
+
+    /**
      * Get cohort by provided item type and item id.
      *
      * @param int $itemid Item ID.
@@ -288,6 +343,35 @@ class helper {
             if (in_array($itemname, $fielddata)) {
                 $key = array_search($itemname, $fielddata);
                 unset($fielddata[$key]);
+                sort($fielddata);
+                $field->param1 = implode("\n", $fielddata);
+                $DB->update_record('user_info_field', $field);
+            }
+        }
+    }
+
+    /**
+     * Delete a given item from profile field.
+     *
+     * @param string $shortname Field short name.
+     * @param string $oldname Old name of the item
+     * @param string $newname New name of the item.
+     *
+     * @return void
+     */
+    public static function update_profile_field_item(string $shortname, string $oldname, string $newname): void {
+        global $DB;
+
+        $field = $DB->get_record('user_info_field', ['shortname' => $shortname]);
+        if ($field) {
+            $fielddata = [];
+            if (!empty($field->param1)) {
+                $fielddata = explode("\n", $field->param1);
+            }
+
+            if (in_array($oldname, $fielddata)) {
+                $key = array_search($oldname, $fielddata);
+                $fielddata[$key] = $newname;
                 sort($fielddata);
                 $field->param1 = implode("\n", $fielddata);
                 $DB->update_record('user_info_field', $field);
