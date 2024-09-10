@@ -17,10 +17,10 @@
 namespace tool_enrolprofile;
 
 use advanced_testcase;
+use core\context\coursecat;
 use core_customfield\field_controller;
 use core_tag_tag;
 use context_course;
-use core_user;
 
 /**
  * Unit tests for observer class.
@@ -415,7 +415,7 @@ class observer_test extends advanced_testcase {
         $categorycohort = $DB->get_record('cohort', ['name' => $category->name]);
         $this->assertNotEmpty($categorycohort);
 
-        $cohort = cohort_get_cohort($categorycohort->id, context_course::instance($category->id), true);
+        $cohort = cohort_get_cohort($categorycohort->id, coursecat::instance($category->id), true);
         foreach ($cohort->customfields as $customfield) {
             if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_ID) {
                 $this->assertSame($category->id, $customfield->export_value());
@@ -438,6 +438,42 @@ class observer_test extends advanced_testcase {
 
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
+    }
+
+    /**
+     * Check logic when moving a course to a different category.
+     */
+    public function test_course_moved_to_different_category(): void {
+        global $DB;
+
+        $category1 = $this->getDataGenerator()->create_category();
+        $category2 = $this->getDataGenerator()->create_category();
+        $course = $this->getDataGenerator()->create_course(['category' => $category1->id]);
+
+        // Should be course and category cohorts.
+        $this->assertCount(2, $DB->get_records('enrol', ['courseid' => $course->id, 'enrol' => 'cohort']));
+
+        // Check everything about category cohort.
+        $categorycohort1 = $DB->get_record('cohort', ['name' => $category1->name]);
+        $this->assertNotEmpty($categorycohort1);
+
+        $categorycohort2 = $DB->get_record('cohort', ['name' => $category2->name]);
+        $this->assertNotEmpty($categorycohort2);
+
+        $enrol1 = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $categorycohort1->id]);
+        $this->assertNotEmpty($enrol1);
+
+        $enrol2 = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $categorycohort2->id]);
+        $this->assertEmpty($enrol2);
+
+        $course->category = $category2->id;
+        update_course($course);
+
+        $enrol1 = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $categorycohort1->id]);
+        $this->assertEmpty($enrol1);
+
+        $enrol2 = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $categorycohort2->id]);
+        $this->assertNotEmpty($enrol2);
     }
 
     /**
@@ -618,7 +654,7 @@ class observer_test extends advanced_testcase {
         $categorycohort = $DB->get_record('cohort', ['name' => $category->name]);
         $this->assertNotEmpty($categorycohort);
 
-        $cohort = cohort_get_cohort($categorycohort->id, \context_coursecat::instance($category->id), true);
+        $cohort = cohort_get_cohort($categorycohort->id, coursecat::instance($category->id), true);
         foreach ($cohort->customfields as $customfield) {
             if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_ID) {
                 $this->assertSame($category->id, $customfield->export_value());
