@@ -16,6 +16,7 @@
 
 namespace tool_enrolprofile;
 
+use core\context\course;
 use core\event\course_category_created;
 use core\event\course_category_deleted;
 use core\event\course_category_updated;
@@ -26,7 +27,6 @@ use core\event\tag_added;
 use core\event\tag_removed;
 use core\event\tag_deleted;
 use core\event\tag_updated;
-use tool_dynamic_cohorts\rule;
 
 /**
  * Event observer class.
@@ -119,6 +119,10 @@ class observer {
         if (key_exists(helper::COURSE_NAME, $event->other['updatedfields'])) {
             $newcoursename = $event->other['updatedfields'][helper::COURSE_NAME];
             helper::rename_item($event->courseid, helper::ITEM_TYPE_COURSE, $newcoursename);
+        }
+
+        if (key_exists('category', $event->other['updatedfields'])) {
+            helper::update_course_category($event->courseid, $event->other['updatedfields']['category']);
         }
     }
 

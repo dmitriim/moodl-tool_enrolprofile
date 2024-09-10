@@ -16,7 +16,8 @@
 
 namespace tool_enrolprofile;
 
-use context_system;
+use core\context\course;
+use core\context\system;
 use stdClass;
 use tool_dynamic_cohorts\cohort_manager;
 use tool_dynamic_cohorts\condition_base;
@@ -90,7 +91,7 @@ class helper {
 
         if (empty($cohort)) {
             $cohort = new stdClass();
-            $cohort->contextid = context_system::instance()->id;
+            $cohort->contextid = system::instance()->id;
             $cohort->name = $itemname;
             $cohort->idnumber = $itemname;
             $cohort->description = ucfirst($itemtype) . ' related';
@@ -208,7 +209,7 @@ class helper {
      * @return stdClass|null
      */
     public static function get_cohort_by_item(int $itemid, string $itemtype): ?stdClass {
-        $systemcontext = context_system::instance();
+        $systemcontext = system::instance();
 
         $allcohorts = cohort_get_cohorts($systemcontext->id, 0, 0, '', true);
         // Load custom fields data and filter bby custom field type and id.
@@ -457,5 +458,50 @@ class helper {
         global $DB;
 
         return $DB->get_record('role', ['shortname' => self::STUDENT_ROLE]);
+    }
+
+    /**
+     * Processing course category change for a given course.
+     *
+     * @param int $courseid Given course ID
+     * @param int $newcategoryid ID of a new category.
+     * @return void
+     */
+    public static function update_course_category(int $courseid, int $newcategoryid): void {
+        global $DB;
+
+        $studentrole = self::get_student_role();
+
+        $params = [
+            'enrol' => 'cohort',
+            'roleid' => $studentrole->id,
+            'courseid' => $courseid,
+        ];
+
+        $enrolments = $DB->get_records('enrol', $params);
+        foreach ($enrolments as $enrolment) {
+            $cohortid = $enrolment->customint1;
+            $cohort = cohort_get_cohort($cohortid, course::instance($courseid), true);
+            $oldcategoryidid = $type = null;
+
+            foreach ($cohort->customfields as $customfield) {
+                if ($customfield->get_field()->get('shortname') == self::COHORT_FIELD_ID) {
+                    $oldcategoryidid = $customfield->export_value();
+                }
+                if ($customfield->get_field()->get('shortname') == self::COHORT_FIELD_TYPE) {
+                    $type = $customfield->export_value();
+                }
+            }
+
+            if ($type == self::ITEM_TYPE_CATEGORY && !empty($oldcategoryidid)) {
+                self::remove_enrolment_method($oldcategoryidid, self::ITEM_TYPE_CATEGORY, $courseid);
+            }
+        }
+
+        $cohort = self::get_cohort_by_item($newcategoryid, self::ITEM_TYPE_CATEGORY);
+        if ($cohort) {
+            $course = get_course($courseid);
+            self::add_enrolment_method($course, $cohort);
+        }
     }
 }
