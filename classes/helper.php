@@ -16,8 +16,8 @@
 
 namespace tool_enrolprofile;
 
-use context_system;
 use core\context\course;
+use core\context\system;
 use stdClass;
 use tool_dynamic_cohorts\cohort_manager;
 use tool_dynamic_cohorts\condition_base;
@@ -91,7 +91,7 @@ class helper {
 
         if (empty($cohort)) {
             $cohort = new stdClass();
-            $cohort->contextid = context_system::instance()->id;
+            $cohort->contextid = system::instance()->id;
             $cohort->name = $itemname;
             $cohort->idnumber = $itemname;
             $cohort->description = ucfirst($itemtype) . ' related';
@@ -209,7 +209,7 @@ class helper {
      * @return stdClass|null
      */
     public static function get_cohort_by_item(int $itemid, string $itemtype): ?stdClass {
-        $systemcontext = context_system::instance();
+        $systemcontext = system::instance();
 
         $allcohorts = cohort_get_cohorts($systemcontext->id, 0, 0, '', true);
         // Load custom fields data and filter bby custom field type and id.
