@@ -469,7 +469,7 @@ class helper {
      */
     public static function update_course_category(int $courseid, int $newcategoryid): void {
         global $DB;
-        
+
         $studentrole = self::get_student_role();
 
         $params = [
