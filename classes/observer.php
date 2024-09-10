@@ -20,6 +20,7 @@ use core\event\course_category_created;
 use core\event\course_category_deleted;
 use core\event\course_created;
 use core\event\course_deleted;
+use core\event\course_updated;
 use core\event\tag_added;
 use core\event\tag_removed;
 use core\event\tag_deleted;
@@ -83,7 +84,7 @@ class observer {
     }
 
     /**
-     * Process tag_deleted event.
+     * Process tag_updated event.
      *
      * @param tag_updated $event The event.
      */
@@ -106,6 +107,18 @@ class observer {
 
         $category = $DB->get_record('course_categories', ['id' => $course->category]);
         helper::add_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name, $course);
+    }
+
+    /**
+     * Process course_updated event.
+     *
+     * @param course_updated $event The event.
+     */
+    public static function course_updated(course_updated $event): void {
+        if (key_exists(helper::COURSE_NAME, $event->other['updatedfields'])) {
+            $newcoursename = $event->other['updatedfields'][helper::COURSE_NAME];
+            helper::rename_item($event->courseid, helper::ITEM_TYPE_COURSE, $newcoursename);
+        }
     }
 
     /**

@@ -46,6 +46,10 @@ $observers = [
         'callback' => '\tool_enrolprofile\observer::course_created',
     ],
     [
+        'eventname' => '\core\event\course_updated',
+        'callback' => '\tool_enrolprofile\observer::course_updated',
+    ],
+    [
         'eventname' => '\core\event\course_deleted',
         'callback' => '\tool_enrolprofile\observer::course_deleted',
     ],
