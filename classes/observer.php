@@ -18,6 +18,7 @@ namespace tool_enrolprofile;
 
 use core\event\course_category_created;
 use core\event\course_category_deleted;
+use core\event\course_category_updated;
 use core\event\course_created;
 use core\event\course_deleted;
 use core\event\course_updated;
@@ -142,6 +143,18 @@ class observer {
 
         $category = $DB->get_record('course_categories', ['id' => $event->objectid]);
         helper::add_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
+    }
+
+    /**
+     * Process course_category_updated event.
+     *
+     * @param course_category_updated $event The event.
+     */
+    public static function course_category_updated(course_category_updated $event): void {
+        global $DB;
+
+        $category = $DB->get_record('course_categories', ['id' => $event->objectid]);
+        helper::rename_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
     }
 
     /**

@@ -539,7 +539,7 @@ class observer_test extends advanced_testcase {
 
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
-        
+
         profile_load_data($user1);
         $this->assertSame([
             'Not course',
@@ -638,6 +638,115 @@ class observer_test extends advanced_testcase {
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
         $this->assertCount(2, $conditions);
+    }
+
+    /**
+     * Check logic when updating a name of the course category.
+     */
+    public function test_course_category_name_updated(): void {
+        global $DB;
+
+        $categoryname = 'Category name';
+        $profilefield = 'profile_field_' . helper::ITEM_TYPE_CATEGORY;
+
+        $category = $this->getDataGenerator()->create_category(['name' => $categoryname]);
+        $this->getDataGenerator()->create_category(['name' => 'Not category']);
+
+        // Check everything about category cohort.
+        $categorycohort = $DB->get_record('cohort', ['name' => $categoryname]);
+        $this->assertNotEmpty($categorycohort);
+
+        $cohort = cohort_get_cohort($categorycohort->id, \context_coursecat::instance($category->id), true);
+        foreach ($cohort->customfields as $customfield) {
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_ID) {
+                $this->assertSame($category->id, $customfield->export_value());
+            }
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_TYPE) {
+                $this->assertSame(helper::ITEM_TYPE_CATEGORY, $customfield->export_value());
+            }
+        }
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->categoryprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($categoryname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $categoryname]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($cohort->id, $rule->cohortid);
+
+        $user1 = $this->getDataGenerator()->create_user();
+        profile_save_data((object)[
+            'id' => $user1->id,
+            $profilefield => [
+                'Not category',
+                $categoryname,
+            ]
+        ]);
+
+        $user2 = $this->getDataGenerator()->create_user();
+        profile_save_data((object)[
+            'id' => $user2->id,
+            $profilefield => [
+                $categoryname,
+                'Not category',
+            ]
+        ]);
+
+        profile_load_data($user1);
+        $this->assertSame([
+                'Not category',
+                $categoryname,
+            ], $user1->$profilefield
+        );
+        profile_load_data($user2);
+        $this->assertSame([
+                $categoryname,
+                'Not category',
+            ], $user2->$profilefield
+        );
+
+        // Update category name.
+        $newcategoryname = 'New category name';
+        $categoryrecord = $DB->get_record('course_categories', ['id' => $category->id]);
+        $categoryrecord->name = $newcategoryname;
+        $category->update($categoryrecord);
+
+        $categorycohort = $DB->get_record('cohort', ['name' => $newcategoryname]);
+        $this->assertNotEmpty($categorycohort);
+        $this->assertEmpty($DB->get_record('cohort', ['name' => $categoryname]));
+
+        $cohort = cohort_get_cohort($categorycohort->id, \context_coursecat::instance($category->id), true);
+        foreach ($cohort->customfields as $customfield) {
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_ID) {
+                $this->assertSame($category->id, $customfield->export_value());
+            }
+            if ($customfield->get_field()->get('shortname') == helper::COHORT_FIELD_TYPE) {
+                $this->assertSame(helper::ITEM_TYPE_CATEGORY, $customfield->export_value());
+            }
+        }
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->categoryprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($newcategoryname, explode("\n", $profilefielddata)));
+        $this->assertFalse(in_array($categoryname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $newcategoryname]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($cohort->id, $rule->cohortid);
+        $this->assertEmpty($DB->get_record('cohort', ['name' => $categoryname]));
+
+        profile_load_data($user1);
+        $this->assertSame([
+                'Not category',
+                $newcategoryname,
+            ], $user1->$profilefield
+        );
+        profile_load_data($user2);
+        $this->assertSame([
+                $newcategoryname,
+                'Not category',
+            ], $user2->$profilefield
+        );
     }
 
     /**
