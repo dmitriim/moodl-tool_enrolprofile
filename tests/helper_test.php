@@ -23,7 +23,7 @@ use core_customfield\field_controller;
  * Unit tests for helper class.
  *
  * @package     tool_enrolprofile
- * @copyright   2024 Dmitrii Metelkin <dnmetelk@gmail.comt>
+ * @copyright   2024 Dmitrii Metelkin <dnmetelk@gmail.com>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
  * @covers     \tool_enrolprofile\observer
