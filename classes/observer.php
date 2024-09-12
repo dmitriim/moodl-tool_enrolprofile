@@ -31,6 +31,7 @@ use tool_enrolprofile\task\add_item;
 use tool_enrolprofile\task\remove_enrolment_method;
 use tool_enrolprofile\task\remove_item;
 use tool_enrolprofile\task\rename_item;
+use tool_enrolprofile\task\update_course_category;
 
 /**
  * Event observer class.
@@ -195,7 +196,12 @@ class observer {
         }
 
         if (key_exists('category', $event->other['updatedfields'])) {
-            helper::update_course_category($event->courseid, $event->other['updatedfields']['category']);
+            $task = new update_course_category();
+            $task->set_custom_data([
+                'courseid' => $event->courseid,
+                'categoryid' => $event->other['updatedfields']['category'],
+            ]);
+            manager::queue_adhoc_task($task, true);
         }
     }
 
