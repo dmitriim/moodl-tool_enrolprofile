@@ -16,7 +16,6 @@
 
 namespace tool_enrolprofile;
 
-use core\context\course;
 use core\event\course_category_created;
 use core\event\course_category_deleted;
 use core\event\course_category_updated;
@@ -27,6 +26,8 @@ use core\event\tag_added;
 use core\event\tag_removed;
 use core\event\tag_deleted;
 use core\event\tag_updated;
+use core\task\manager;
+use tool_enrolprofile\task\add_item;
 
 /**
  * Event observer class.
@@ -37,6 +38,24 @@ use core\event\tag_updated;
  */
 class observer {
 
+    /**
+     * Creates task to add an item.
+     *
+     * @param int $itemid Item ID
+     * @param string $itemtype Item type (tag, course, category).
+     * @param string $itemname Item name.
+     * @param int|null $courseid Optional course ID.
+     */
+    private static function create_add_item_task(int $itemid, string $itemtype, string $itemname, ?int $courseid = null): void {
+        $task = new add_item();
+        $task->set_custom_data([
+            'itemid' => $itemid,
+            'itemtype' => $itemtype,
+            'itemname' => $itemname,
+            'courseid' => $courseid,
+        ]);
+        manager::queue_adhoc_task($task, true);
+    }
     /**
      * Process tag_added event.
      *
@@ -49,11 +68,12 @@ class observer {
             return;
         }
 
-        $tagid = $event->other['tagid'];
-        $tagname = $event->other['tagrawname'];
-        $course = get_course($event->other['itemid']);
-
-        helper::add_item($tagid, helper::ITEM_TYPE_TAG, $tagname, $course);
+        self::create_add_item_task(
+            $event->other['tagid'],
+            helper::ITEM_TYPE_TAG,
+            $event->other['tagrawname'],
+            $event->other['itemid']
+        );
     }
 
     /**
@@ -104,10 +124,20 @@ class observer {
         global $DB;
 
         $course = get_course($event->courseid);
-        helper::add_item($course->id, helper::ITEM_TYPE_COURSE, $course->{helper::COURSE_NAME}, $course);
+        self::create_add_item_task(
+            $course->id,
+            helper::ITEM_TYPE_COURSE,
+            $course->{helper::COURSE_NAME},
+            $course->id
+        );
 
         $category = $DB->get_record('course_categories', ['id' => $course->category]);
-        helper::add_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name, $course);
+        self::create_add_item_task(
+            $category->id,
+            helper::ITEM_TYPE_CATEGORY,
+            $category->name,
+            $course->id
+        );
     }
 
     /**
@@ -146,7 +176,11 @@ class observer {
         global $DB;
 
         $category = $DB->get_record('course_categories', ['id' => $event->objectid]);
-        helper::add_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
+        self::create_add_item_task(
+            $category->id,
+            helper::ITEM_TYPE_CATEGORY,
+            $category->name
+        );
     }
 
     /**
