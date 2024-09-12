@@ -21,6 +21,8 @@ use core\context\course;
 use core\context\coursecat;
 use core_customfield\field_controller;
 use core_tag_tag;
+use core\task\manager;
+
 
 /**
  * Unit tests for observer class.
@@ -125,12 +127,24 @@ class observer_test extends advanced_testcase {
     }
 
     /**
+     * Helper method to execute adhoc tasks.
+     */
+    protected function execute_tasks(): void {
+        while ($task = manager::get_next_adhoc_task(time())) {
+            $task->execute();
+            manager::adhoc_task_complete($task);
+        }
+    }
+
+    /**
      * Check logic when adding a tag.
      */
     public function test_tag_added(): void {
         global $DB;
 
         $course = $this->getDataGenerator()->create_course();
+        $this->execute_tasks();
+
         $tagname = 'A tag';
 
         $this->assertEmpty($DB->get_record('cohort', ['name' => $tagname]));
@@ -142,6 +156,7 @@ class observer_test extends advanced_testcase {
         $this->assertCount(2, $DB->get_records('enrol', ['courseid' => $course->id, 'enrol' => 'cohort']));
 
         core_tag_tag::set_item_tags('core', 'course', $course->id, course::instance($course->id), [$tagname]);
+        $this->execute_tasks();
 
         $tag = $DB->get_record('tag', ['rawname' => $tagname]);
         $this->assertNotEmpty($tag);
@@ -190,6 +205,8 @@ class observer_test extends advanced_testcase {
             'Not tag',
             'Another tag',
         ]);
+
+        $this->execute_tasks();
 
         $tag = $DB->get_record('tag', ['rawname' => $tagname]);
         $this->assertNotEmpty($tag);
@@ -251,6 +268,7 @@ class observer_test extends advanced_testcase {
         // Update name of the tag.
         $newtagname = 'A new tag name';
         core_tag_tag::get($tag->id, '*')->update(array('rawname' => $newtagname));
+        $this->execute_tasks();
 
         $tag = $DB->get_record('tag', ['rawname' => $tagname]);
         $this->assertEmpty($tag);
@@ -312,11 +330,14 @@ class observer_test extends advanced_testcase {
 
         core_tag_tag::set_item_tags('core', 'course', $course->id, course::instance($course->id), [$tagname]);
 
+        $this->execute_tasks();
+
         $cohort = $DB->get_record('cohort', ['name' => $tagname]);
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
 
         core_tag_tag::remove_item_tag('core', 'course', $course->id, $tagname);
+        $this->execute_tasks();
 
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertEmpty($enrol);
@@ -332,6 +353,8 @@ class observer_test extends advanced_testcase {
         $tagname = 'A tag';
 
         core_tag_tag::set_item_tags('core', 'course', $course->id, course::instance($course->id), [$tagname]);
+
+        $this->execute_tasks();
 
         $cohort = $DB->get_record('cohort', ['name' => $tagname]);
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
@@ -350,6 +373,7 @@ class observer_test extends advanced_testcase {
         $this->assertCount(2, $conditions);
 
         core_tag_tag::delete_tags([$tag->id]);
+        $this->execute_tasks();
 
         // Tag deleted.
         $this->assertEmpty($DB->get_record('tag', ['rawname' => $tagname]));
@@ -378,6 +402,7 @@ class observer_test extends advanced_testcase {
         $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $coursename]));
 
         $course = $this->getDataGenerator()->create_course(['fullname' => $coursename]);
+        $this->execute_tasks();
 
         // Should be course and category cohorts.
         $this->assertCount(2, $DB->get_records('enrol', ['courseid' => $course->id, 'enrol' => 'cohort']));
@@ -450,6 +475,8 @@ class observer_test extends advanced_testcase {
         $category2 = $this->getDataGenerator()->create_category();
         $course = $this->getDataGenerator()->create_course(['category' => $category1->id]);
 
+        $this->execute_tasks();
+
         // Should be course and category cohorts.
         $this->assertCount(2, $DB->get_records('enrol', ['courseid' => $course->id, 'enrol' => 'cohort']));
 
@@ -468,6 +495,7 @@ class observer_test extends advanced_testcase {
 
         $course->category = $category2->id;
         update_course($course);
+        $this->execute_tasks();
 
         $enrol1 = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $categorycohort1->id]);
         $this->assertEmpty($enrol1);
@@ -487,6 +515,8 @@ class observer_test extends advanced_testcase {
 
         $course = $this->getDataGenerator()->create_course(['fullname' => $coursename]);
         $this->getDataGenerator()->create_course(['fullname' => 'Not course']);
+
+        $this->execute_tasks();
 
         // Check everything about course cohort.
         $coursecohort = $DB->get_record('cohort', ['name' => $coursename]);
@@ -548,6 +578,7 @@ class observer_test extends advanced_testcase {
         $newcoursename = 'New course name';
         $course->fullname = $newcoursename;
         update_course($course);
+        $this->execute_tasks();
 
         $coursecohort = $DB->get_record('cohort', ['name' => $newcoursename]);
         $this->assertNotEmpty($coursecohort);
@@ -598,6 +629,7 @@ class observer_test extends advanced_testcase {
 
         $coursename = 'Course name';
         $course = $this->getDataGenerator()->create_course(['fullname' => $coursename]);
+        $this->execute_tasks();
 
         // Should be course and category cohorts.
         $this->assertCount(2, $DB->get_records('enrol', ['courseid' => $course->id, 'enrol' => 'cohort']));
@@ -622,6 +654,8 @@ class observer_test extends advanced_testcase {
         $this->assertNotEmpty($enrol);
 
         delete_course($course->id, false);
+
+        $this->execute_tasks();
 
         $coursecohort = $DB->get_record('cohort', ['name' => $coursename]);
         $this->assertEmpty($coursecohort);
@@ -649,6 +683,7 @@ class observer_test extends advanced_testcase {
         $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $categoryname]));
 
         $category = $this->getDataGenerator()->create_category(['name' => $categoryname]);
+        $this->execute_tasks();
 
         // Check everything about category cohort.
         $categorycohort = $DB->get_record('cohort', ['name' => $category->name]);
@@ -687,6 +722,7 @@ class observer_test extends advanced_testcase {
 
         $category = $this->getDataGenerator()->create_category(['name' => $categoryname]);
         $this->getDataGenerator()->create_category(['name' => 'Not category']);
+        $this->execute_tasks();
 
         // Check everything about category cohort.
         $categorycohort = $DB->get_record('cohort', ['name' => $categoryname]);
@@ -746,6 +782,7 @@ class observer_test extends advanced_testcase {
         $categoryrecord = $DB->get_record('course_categories', ['id' => $category->id]);
         $categoryrecord->name = $newcategoryname;
         $category->update($categoryrecord);
+        $this->execute_tasks();
 
         $categorycohort = $DB->get_record('cohort', ['name' => $newcategoryname]);
         $this->assertNotEmpty($categorycohort);
@@ -799,6 +836,8 @@ class observer_test extends advanced_testcase {
         $category = $this->getDataGenerator()->create_category(['name' => $categoryname]);
         $course = $this->getDataGenerator()->create_course(['category' => $category->id]);
 
+        $this->execute_tasks();
+
         // Check everything about category cohort.
         $categorycohort = $DB->get_record('cohort', ['name' => $category->name]);
         $this->assertNotEmpty($categorycohort);
@@ -820,6 +859,7 @@ class observer_test extends advanced_testcase {
         $this->assertNotEmpty($enrol);
 
         $category->delete_full(false);
+        $this->execute_tasks();
 
         $categorycohort = $DB->get_record('cohort', ['name' => $categoryname]);
         $this->assertEmpty($categorycohort);

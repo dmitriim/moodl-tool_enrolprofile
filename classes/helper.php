@@ -16,6 +16,7 @@
 
 namespace tool_enrolprofile;
 
+use coding_exception;
 use core\context\course;
 use core\context\system;
 use stdClass;
@@ -502,6 +503,21 @@ class helper {
         if ($cohort) {
             $course = get_course($courseid);
             self::add_enrolment_method($course, $cohort);
+        }
+    }
+
+    /**
+     * Validates custom data.
+     *
+     * @param stdClass $data Custom data for a given task.
+     * @param array $fields A list of required fields.
+     * @return void
+     */
+    public static function validate_task_custom_data(stdClass $data, array $fields = ['itemid', 'itemtype', 'itemname']): void {
+        foreach ($fields as $field) {
+            if (empty($data->$field)) {
+                throw new coding_exception('Missing required field: ' . $field);
+            }
         }
     }
 }
