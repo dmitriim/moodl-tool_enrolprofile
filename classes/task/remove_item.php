@@ -21,13 +21,13 @@ use Exception;
 use tool_enrolprofile\helper;
 
 /**
- * Add item adhoc task.
+ * Remove item adhoc task.
  *
  * @package     tool_enrolprofile
  * @copyright   2024 Dmitrii Metelkin <dnmetelk@gmail.com>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class add_item extends adhoc_task {
+class remove_item extends adhoc_task {
 
     /**
      * Task execution
@@ -35,17 +35,13 @@ class add_item extends adhoc_task {
     public function execute() {
         global $DB;
 
-        $course = null;
         $data = $this->get_custom_data();
         helper::validate_task_custom_data($data);
 
         $transaction = $DB->start_delegated_transaction();
 
         try {
-            if (!empty($data->courseid)) {
-                $course = get_course($data->courseid);
-            }
-            helper::add_item($data->itemid, $data->itemtype, $data->itemname, $course);
+            helper::remove_item($data->itemid, $data->itemtype, $data->itemname);
             $transaction->allow_commit();
         } catch (Exception $exception) {
             $transaction->rollback($exception);

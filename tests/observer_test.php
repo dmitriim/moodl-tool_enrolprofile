@@ -23,6 +23,7 @@ use core_customfield\field_controller;
 use core_tag_tag;
 use tool_enrolprofile\task\add_item;
 use core\task\manager;
+use tool_enrolprofile\task\remove_item;
 
 /**
  * Unit tests for observer class.
@@ -132,6 +133,17 @@ class observer_test extends advanced_testcase {
     protected function execute_add_item_tasks(): void {
         while ($task = manager::get_next_adhoc_task(time())) {
             $this->assertInstanceOf(add_item::class, $task);
+            $task->execute();
+            manager::adhoc_task_complete($task);
+        }
+    }
+
+    /**
+     * Helper method to execute remove item adhoc tasks.
+     */
+    protected function execute_remove_item_tasks(): void {
+        while ($task = manager::get_next_adhoc_task(time())) {
+            $this->assertInstanceOf(remove_item::class, $task);
             $task->execute();
             manager::adhoc_task_complete($task);
         }
@@ -372,6 +384,7 @@ class observer_test extends advanced_testcase {
         $this->assertCount(2, $conditions);
 
         core_tag_tag::delete_tags([$tag->id]);
+        $this->execute_remove_item_tasks();
 
         // Tag deleted.
         $this->assertEmpty($DB->get_record('tag', ['rawname' => $tagname]));
@@ -651,6 +664,8 @@ class observer_test extends advanced_testcase {
 
         delete_course($course->id, false);
 
+        $this->execute_remove_item_tasks();
+
         $coursecohort = $DB->get_record('cohort', ['name' => $coursename]);
         $this->assertEmpty($coursecohort);
 
@@ -852,6 +867,7 @@ class observer_test extends advanced_testcase {
         $this->assertNotEmpty($enrol);
 
         $category->delete_full(false);
+        $this->execute_remove_item_tasks();
 
         $categorycohort = $DB->get_record('cohort', ['name' => $categoryname]);
         $this->assertEmpty($categorycohort);

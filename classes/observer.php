@@ -28,6 +28,7 @@ use core\event\tag_deleted;
 use core\event\tag_updated;
 use core\task\manager;
 use tool_enrolprofile\task\add_item;
+use tool_enrolprofile\task\remove_item;
 
 /**
  * Event observer class.
@@ -56,6 +57,24 @@ class observer {
         ]);
         manager::queue_adhoc_task($task, true);
     }
+
+    /**
+     * Creates task to remove an item.
+     *
+     * @param int $itemid Item ID
+     * @param string $itemtype Item type (tag, course, category).
+     * @param string $itemname Item name.
+     */
+    private static function create_remove_item_task(int $itemid, string $itemtype, string $itemname): void {
+        $task = new remove_item();
+        $task->set_custom_data([
+            'itemid' => $itemid,
+            'itemtype' => $itemtype,
+            'itemname' => $itemname,
+        ]);
+        manager::queue_adhoc_task($task, true);
+    }
+
     /**
      * Process tag_added event.
      *
@@ -101,7 +120,8 @@ class observer {
     public static function tag_deleted(tag_deleted $event): void {
         $tagid = $event->objectid;
         $tagname = $event->other['rawname'];
-        helper::remove_item($tagid, helper::ITEM_TYPE_TAG, $tagname);
+
+        self::create_remove_item_task($tagid, helper::ITEM_TYPE_TAG, $tagname);
     }
 
     /**
@@ -164,7 +184,8 @@ class observer {
     public static function course_deleted(course_deleted $event): void {
         $courseid = $event->courseid;
         $coursename = $event->other['fullname'];
-        helper::remove_item($courseid, helper::ITEM_TYPE_COURSE, $coursename);
+
+        self::create_remove_item_task($courseid, helper::ITEM_TYPE_COURSE, $coursename);
     }
 
     /**
@@ -205,6 +226,6 @@ class observer {
         $categoryid = $event->objectid;
         $categoryname = $event->other['name'];
 
-        helper::remove_item($categoryid, helper::ITEM_TYPE_CATEGORY, $categoryname);
+        self::create_remove_item_task($categoryid, helper::ITEM_TYPE_CATEGORY, $categoryname);
     }
 }
