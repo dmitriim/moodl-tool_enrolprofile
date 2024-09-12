@@ -510,12 +510,11 @@ class helper {
      * Validates custom data.
      *
      * @param stdClass $data Custom data for a given task.
+     * @param array $fields A list of required fields.
      * @return void
      */
-    public static function validate_task_custom_data(stdClass $data): void {
-        $requiredfields = ['itemid', 'itemtype', 'itemname'];
-
-        foreach ($requiredfields as $field) {
+    public static function validate_task_custom_data(stdClass $data, array $fields = ['itemid', 'itemtype', 'itemname']): void {
+        foreach ($fields as $field) {
             if (empty($data->$field)) {
                 throw new coding_exception('Missing required field: ' . $field);
             }

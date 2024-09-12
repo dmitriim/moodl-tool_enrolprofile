@@ -28,6 +28,7 @@ use core\event\tag_deleted;
 use core\event\tag_updated;
 use core\task\manager;
 use tool_enrolprofile\task\add_item;
+use tool_enrolprofile\task\remove_enrolment_method;
 use tool_enrolprofile\task\remove_item;
 use tool_enrolprofile\task\rename_item;
 
@@ -125,9 +126,13 @@ class observer {
             return;
         }
 
-        $tagid = $event->other['tagid'];
-        $course = get_course($event->other['itemid']);
-        helper::remove_enrolment_method($tagid, helper::ITEM_TYPE_TAG, $course->id);
+        $task = new remove_enrolment_method();
+        $task->set_custom_data([
+            'itemid' => $event->other['tagid'],
+            'itemtype' => helper::ITEM_TYPE_TAG,
+            'courseid' => $event->other['itemid'],
+        ]);
+        manager::queue_adhoc_task($task, true);
     }
 
     /**
