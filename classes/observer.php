@@ -27,11 +27,6 @@ use core\event\tag_removed;
 use core\event\tag_deleted;
 use core\event\tag_updated;
 use core\task\manager;
-use tool_enrolprofile\task\add_item;
-use tool_enrolprofile\task\remove_enrolment_method;
-use tool_enrolprofile\task\remove_item;
-use tool_enrolprofile\task\rename_item;
-use tool_enrolprofile\task\update_course_category;
 
 /**
  * Event observer class.
@@ -43,55 +38,15 @@ use tool_enrolprofile\task\update_course_category;
 class observer {
 
     /**
-     * Creates task to add an item.
+     * A helper method to queue adhoc task.
      *
-     * @param int $itemid Item ID
-     * @param string $itemtype Item type (tag, course, category).
-     * @param string $itemname Item name.
-     * @param int|null $courseid Optional course ID.
+     * @param string $taskname Task name.
+     * @param array $customdata Task custom data.
      */
-    private static function create_add_item_task(int $itemid, string $itemtype, string $itemname, ?int $courseid = null): void {
-        $task = new add_item();
-        $task->set_custom_data([
-            'itemid' => $itemid,
-            'itemtype' => $itemtype,
-            'itemname' => $itemname,
-            'courseid' => $courseid,
-        ]);
-        manager::queue_adhoc_task($task, true);
-    }
-
-    /**
-     * Creates task to remove an item.
-     *
-     * @param int $itemid Item ID
-     * @param string $itemtype Item type (tag, course, category).
-     * @param string $itemname Item name.
-     */
-    private static function create_remove_item_task(int $itemid, string $itemtype, string $itemname): void {
-        $task = new remove_item();
-        $task->set_custom_data([
-            'itemid' => $itemid,
-            'itemtype' => $itemtype,
-            'itemname' => $itemname,
-        ]);
-        manager::queue_adhoc_task($task, true);
-    }
-
-    /**
-     * Creates task to rename an item.
-     *
-     * @param int $itemid Item ID
-     * @param string $itemtype Item type (tag, course, category).
-     * @param string $itemname Item name.
-     */
-    private static function create_rename_item_task(int $itemid, string $itemtype, string $itemname): void {
-        $task = new rename_item();
-        $task->set_custom_data([
-            'itemid' => $itemid,
-            'itemtype' => $itemtype,
-            'itemname' => $itemname,
-        ]);
+    private static function queue_adhoc_task(string $taskname, array $customdata): void {
+        $taskclass = '\\tool_enrolprofile\\task\\' . $taskname;
+        $task = new $taskclass();
+        $task->set_custom_data($customdata);
         manager::queue_adhoc_task($task, true);
     }
 
@@ -107,12 +62,12 @@ class observer {
             return;
         }
 
-        self::create_add_item_task(
-            $event->other['tagid'],
-            helper::ITEM_TYPE_TAG,
-            $event->other['tagrawname'],
-            $event->other['itemid']
-        );
+        self::queue_adhoc_task('add_item', [
+            'itemid' => $event->other['tagid'],
+            'itemtype' => helper::ITEM_TYPE_TAG,
+            'itemname' => $event->other['tagrawname'],
+            'courseid' => $event->other['itemid'],
+        ]);
     }
 
     /**
@@ -127,13 +82,11 @@ class observer {
             return;
         }
 
-        $task = new remove_enrolment_method();
-        $task->set_custom_data([
+        self::queue_adhoc_task('remove_enrolment_method', [
             'itemid' => $event->other['tagid'],
             'itemtype' => helper::ITEM_TYPE_TAG,
             'courseid' => $event->other['itemid'],
         ]);
-        manager::queue_adhoc_task($task, true);
     }
 
     /**
@@ -145,7 +98,11 @@ class observer {
         $tagid = $event->objectid;
         $tagname = $event->other['rawname'];
 
-        self::create_remove_item_task($tagid, helper::ITEM_TYPE_TAG, $tagname);
+        self::queue_adhoc_task('remove_item', [
+            'itemid' => $tagid,
+            'itemtype' => helper::ITEM_TYPE_TAG,
+            'itemname' => $tagname,
+        ]);
     }
 
     /**
@@ -156,7 +113,11 @@ class observer {
     public static function tag_updated(tag_updated $event): void {
         $tagid = $event->objectid;
         $tagnewname = $event->other['rawname'];
-        self::create_rename_item_task($tagid, helper::ITEM_TYPE_TAG, $tagnewname);
+        self::queue_adhoc_task('rename_item', [
+            'itemid' => $tagid,
+            'itemtype' => helper::ITEM_TYPE_TAG,
+            'itemname' => $tagnewname,
+        ]);
     }
 
     /**
@@ -168,20 +129,20 @@ class observer {
         global $DB;
 
         $course = get_course($event->courseid);
-        self::create_add_item_task(
-            $course->id,
-            helper::ITEM_TYPE_COURSE,
-            $course->{helper::COURSE_NAME},
-            $course->id
-        );
+        self::queue_adhoc_task('add_item', [
+            'itemid' => $course->id,
+            'itemtype' => helper::ITEM_TYPE_COURSE,
+            'itemname' => $course->{helper::COURSE_NAME},
+            'courseid' => $course->id,
+        ]);
 
         $category = $DB->get_record('course_categories', ['id' => $course->category]);
-        self::create_add_item_task(
-            $category->id,
-            helper::ITEM_TYPE_CATEGORY,
-            $category->name,
-            $course->id
-        );
+        self::queue_adhoc_task('add_item', [
+            'itemid' => $category->id,
+            'itemtype' => helper::ITEM_TYPE_CATEGORY,
+            'itemname' => $category->name,
+            'courseid' => $course->id,
+        ]);
     }
 
     /**
@@ -192,16 +153,18 @@ class observer {
     public static function course_updated(course_updated $event): void {
         if (key_exists(helper::COURSE_NAME, $event->other['updatedfields'])) {
             $newcoursename = $event->other['updatedfields'][helper::COURSE_NAME];
-            self::create_rename_item_task($event->courseid, helper::ITEM_TYPE_COURSE, $newcoursename);
+            self::queue_adhoc_task('rename_item', [
+                'itemid' => $event->courseid,
+                'itemtype' => helper::ITEM_TYPE_COURSE,
+                'itemname' => $newcoursename,
+            ]);
         }
 
         if (key_exists('category', $event->other['updatedfields'])) {
-            $task = new update_course_category();
-            $task->set_custom_data([
+            self::queue_adhoc_task('update_course_category', [
                 'courseid' => $event->courseid,
                 'categoryid' => $event->other['updatedfields']['category'],
             ]);
-            manager::queue_adhoc_task($task, true);
         }
     }
 
@@ -214,7 +177,11 @@ class observer {
         $courseid = $event->courseid;
         $coursename = $event->other['fullname'];
 
-        self::create_remove_item_task($courseid, helper::ITEM_TYPE_COURSE, $coursename);
+        self::queue_adhoc_task('remove_item', [
+            'itemid' => $courseid,
+            'itemtype' => helper::ITEM_TYPE_COURSE,
+            'itemname' => $coursename,
+        ]);
     }
 
     /**
@@ -226,7 +193,11 @@ class observer {
         global $DB;
 
         $category = $DB->get_record('course_categories', ['id' => $event->objectid]);
-        self::create_add_item_task($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
+        self::queue_adhoc_task('add_item', [
+            'itemid' => $category->id,
+            'itemtype' => helper::ITEM_TYPE_CATEGORY,
+            'itemname' => $category->name,
+        ]);
     }
 
     /**
@@ -238,7 +209,11 @@ class observer {
         global $DB;
 
         $category = $DB->get_record('course_categories', ['id' => $event->objectid]);
-        self::create_rename_item_task($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
+        self::queue_adhoc_task('rename_item', [
+            'itemid' => $category->id,
+            'itemtype' => helper::ITEM_TYPE_CATEGORY,
+            'itemname' => $category->name,
+        ]);
     }
 
     /**
@@ -251,6 +226,10 @@ class observer {
         $categoryid = $event->objectid;
         $categoryname = $event->other['name'];
 
-        self::create_remove_item_task($categoryid, helper::ITEM_TYPE_CATEGORY, $categoryname);
+        self::queue_adhoc_task('remove_item', [
+            'itemid' => $categoryid,
+            'itemtype' => helper::ITEM_TYPE_CATEGORY,
+            'itemname' => $categoryname,
+        ]);
     }
 }
