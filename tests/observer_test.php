@@ -21,11 +21,8 @@ use core\context\course;
 use core\context\coursecat;
 use core_customfield\field_controller;
 use core_tag_tag;
-use tool_enrolprofile\task\add_item;
 use core\task\manager;
-use tool_enrolprofile\task\remove_enrolment_method;
-use tool_enrolprofile\task\remove_item;
-use tool_enrolprofile\task\rename_item;
+
 
 /**
  * Unit tests for observer class.
