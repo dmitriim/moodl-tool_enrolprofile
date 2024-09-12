@@ -29,6 +29,7 @@ use core\event\tag_updated;
 use core\task\manager;
 use tool_enrolprofile\task\add_item;
 use tool_enrolprofile\task\remove_item;
+use tool_enrolprofile\task\rename_item;
 
 /**
  * Event observer class.
@@ -67,6 +68,23 @@ class observer {
      */
     private static function create_remove_item_task(int $itemid, string $itemtype, string $itemname): void {
         $task = new remove_item();
+        $task->set_custom_data([
+            'itemid' => $itemid,
+            'itemtype' => $itemtype,
+            'itemname' => $itemname,
+        ]);
+        manager::queue_adhoc_task($task, true);
+    }
+
+    /**
+     * Creates task to rename an item.
+     *
+     * @param int $itemid Item ID
+     * @param string $itemtype Item type (tag, course, category).
+     * @param string $itemname Item name.
+     */
+    private static function create_rename_item_task(int $itemid, string $itemtype, string $itemname): void {
+        $task = new rename_item();
         $task->set_custom_data([
             'itemid' => $itemid,
             'itemtype' => $itemtype,
@@ -132,7 +150,7 @@ class observer {
     public static function tag_updated(tag_updated $event): void {
         $tagid = $event->objectid;
         $tagnewname = $event->other['rawname'];
-        helper::rename_item($tagid, helper::ITEM_TYPE_TAG, $tagnewname);
+        self::create_rename_item_task($tagid, helper::ITEM_TYPE_TAG, $tagnewname);
     }
 
     /**
@@ -168,7 +186,7 @@ class observer {
     public static function course_updated(course_updated $event): void {
         if (key_exists(helper::COURSE_NAME, $event->other['updatedfields'])) {
             $newcoursename = $event->other['updatedfields'][helper::COURSE_NAME];
-            helper::rename_item($event->courseid, helper::ITEM_TYPE_COURSE, $newcoursename);
+            self::create_rename_item_task($event->courseid, helper::ITEM_TYPE_COURSE, $newcoursename);
         }
 
         if (key_exists('category', $event->other['updatedfields'])) {
@@ -197,11 +215,7 @@ class observer {
         global $DB;
 
         $category = $DB->get_record('course_categories', ['id' => $event->objectid]);
-        self::create_add_item_task(
-            $category->id,
-            helper::ITEM_TYPE_CATEGORY,
-            $category->name
-        );
+        self::create_add_item_task($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
     }
 
     /**
@@ -213,7 +227,7 @@ class observer {
         global $DB;
 
         $category = $DB->get_record('course_categories', ['id' => $event->objectid]);
-        helper::rename_item($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
+        self::create_rename_item_task($category->id, helper::ITEM_TYPE_CATEGORY, $category->name);
     }
 
     /**

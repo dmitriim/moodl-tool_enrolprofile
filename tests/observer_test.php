@@ -24,6 +24,7 @@ use core_tag_tag;
 use tool_enrolprofile\task\add_item;
 use core\task\manager;
 use tool_enrolprofile\task\remove_item;
+use tool_enrolprofile\task\rename_item;
 
 /**
  * Unit tests for observer class.
@@ -144,6 +145,17 @@ class observer_test extends advanced_testcase {
     protected function execute_remove_item_tasks(): void {
         while ($task = manager::get_next_adhoc_task(time())) {
             $this->assertInstanceOf(remove_item::class, $task);
+            $task->execute();
+            manager::adhoc_task_complete($task);
+        }
+    }
+
+    /**
+     * Helper method to execute rename item adhoc tasks.
+     */
+    protected function execute_rename_item_tasks(): void {
+        while ($task = manager::get_next_adhoc_task(time())) {
+            $this->assertInstanceOf(rename_item::class, $task);
             $task->execute();
             manager::adhoc_task_complete($task);
         }
@@ -281,6 +293,7 @@ class observer_test extends advanced_testcase {
         // Update name of the tag.
         $newtagname = 'A new tag name';
         core_tag_tag::get($tag->id, '*')->update(array('rawname' => $newtagname));
+        $this->execute_rename_item_tasks();
 
         $tag = $DB->get_record('tag', ['rawname' => $tagname]);
         $this->assertEmpty($tag);
@@ -506,6 +519,7 @@ class observer_test extends advanced_testcase {
 
         $course->category = $category2->id;
         update_course($course);
+        $this->execute_rename_item_tasks();
 
         $enrol1 = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $categorycohort1->id]);
         $this->assertEmpty($enrol1);
@@ -588,6 +602,7 @@ class observer_test extends advanced_testcase {
         $newcoursename = 'New course name';
         $course->fullname = $newcoursename;
         update_course($course);
+        $this->execute_rename_item_tasks();
 
         $coursecohort = $DB->get_record('cohort', ['name' => $newcoursename]);
         $this->assertNotEmpty($coursecohort);
@@ -791,6 +806,7 @@ class observer_test extends advanced_testcase {
         $categoryrecord = $DB->get_record('course_categories', ['id' => $category->id]);
         $categoryrecord->name = $newcategoryname;
         $category->update($categoryrecord);
+        $this->execute_rename_item_tasks();
 
         $categorycohort = $DB->get_record('cohort', ['name' => $newcategoryname]);
         $this->assertNotEmpty($categorycohort);
