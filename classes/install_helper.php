@@ -20,10 +20,14 @@ use stdClass;
 use core_customfield\field_controller;
 use core_customfield\category_controller;
 use core_customfield\handler;
+use tool_dynamic_cohorts\cohort_manager;
+use tool_dynamic_cohorts\condition_base;
+use tool_dynamic_cohorts\rule;
 
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot . '/cohort/lib.php');
+require_once($CFG->dirroot . '/user/profile/definelib.php');
 
 /**
  * Install helper class.
@@ -116,7 +120,8 @@ class install_helper {
      * @param array $configdata Config data for a field.
      * @return void
      */
-    public static function add_cohort_custom_field(int $categoryid, string $shortname, string $type = 'text', array $configdata = []): void {
+    public static function add_cohort_custom_field(int $categoryid, string $shortname, string $type = 'text',
+                                                   array $configdata = []): void {
         $category = category_controller::create($categoryid);
         $handler = $category->get_handler();
 
@@ -148,5 +153,233 @@ class install_helper {
         $record->configdata = json_encode($configdata);
         $field = field_controller::create(0, (object)['type' => $record->type], $category);
         $handler->save_field_configuration($field, $record);
+    }
+
+    /**
+     * Gets a list of tags related to courses.
+     *
+     * @param int $courseid Optional to filter by course ID.
+     * @return array
+     */
+    public static function get_course_tags(int $courseid = 0): array {
+        global $DB;
+
+        $params = [];
+        $where = '';
+        if (!empty($courseid)) {
+            $where = " AND ti.itemid = ?";
+            $params[] = $courseid;
+        }
+
+        $sql = "SELECT DISTINCT t.id, t.rawname
+              FROM {tag} t
+              JOIN {tag_instance} ti ON t.id = ti.tagid
+             WHERE ti.itemtype = 'course' $where ORDER BY t.id, t.rawname";
+        return $DB->get_records_sql($sql, $params);
+    }
+
+    /**
+     * Returns a list of courses.
+     *
+     * @return array
+     */
+    public static function get_courses(): array {
+        global $DB;
+
+        return $DB->get_records('course', ['visible' => 1], 'fullname');
+    }
+
+    /**
+     * Get categories.
+     *
+     * @return array
+     */
+    public static function get_categories(): array {
+        global $DB;
+
+        return $DB->get_records('course_categories', ['visible' => 1], 'name');
+    }
+
+    /**
+     * Clean up cohort enrolments.
+     */
+    public static function delete_enrolments(): void {
+        global $DB;
+
+        $instances = $DB->get_records('enrol', ['enrol' => 'cohort']);
+
+        foreach ($instances as $instance) {
+            $cohortplugin = enrol_get_plugin('cohort');
+            $cohortplugin->delete_instance($instance);
+        }
+    }
+
+    /**
+     * Clean up rules and conditions.
+     */
+    public static function delete_rules_and_conditions(): void {
+        global $DB;
+
+        $DB->execute("UPDATE {cohort} SET component = '' WHERE component = :component", [
+            'component' => 'tool_dynamic_cohorts',
+        ]);
+        $DB->delete_records('tool_dynamic_cohorts_c');
+        $DB->delete_records('tool_dynamic_cohorts');
+    }
+
+    /**
+     * Delete cohorts.
+     */
+    public static function delete_cohorts(): void {
+        foreach (cohort_get_all_cohorts(0, 0)['cohorts'] as $cohort) {
+            cohort_delete_cohort($cohort);
+        }
+    }
+
+    /**
+     * Delete custom profile fields.
+     */
+    public static function delete_profile_custom_fields(): void {
+        global $DB;
+
+        $shortnames = ['category', 'course', 'tag', 'enrolleduntil'];
+
+        foreach ($shortnames as $shortname) {
+            $field = $DB->get_record('user_info_field', ['shortname' => $shortname]);
+            if ($field) {
+                profile_delete_field($field->id);
+            }
+        }
+    }
+
+    /**
+     * Add cohort.
+     *
+     * @param stdClass $cohort Cohort.
+     * @param array $options Pass in CLI options.
+     *
+     * @return void
+     */
+    public static function set_up_add_cohort(stdClass $cohort, array $options): void {
+        global $DB;
+        if (!$existingcohort = $DB->get_record('cohort', ['name' => $cohort->name])) {
+            if ($options['run']) {
+                cohort_add_cohort($cohort);
+                cli_writeln("Created cohort '$cohort->name'.");
+            } else {
+                cli_writeln("Will create cohort '$cohort->name'.");
+            }
+        } else {
+            cli_writeln("Cohort '$cohort->name' already exists. Skipping.");
+            $cohort->id = $existingcohort->id;
+        }
+    }
+
+    /**
+     * A helper method to set up rule for given cohort.
+     *
+     * @param stdClass $cohort Cohort.
+     * @param string $fieldshortname Related profile field shortname.
+     * @param array $options Pass in CLI options.
+     *
+     * @return void
+     */
+    public static function add_rule(stdClass $cohort, string $fieldshortname, array $options): void {
+        if ($options['run']) {
+            if (!rule::get_record(['cohortid' => $cohort->id])) {
+                cohort_manager::manage_cohort($cohort->id);
+                $rule = new rule(0, (object)[
+                    'name' => $cohort->name,
+                    'cohortid' => $cohort->id,
+                    'description' => $cohort->description,
+                ]);
+                $rule->save();
+
+                $condition = condition_base::get_instance(0, (object)[
+                    'classname' => 'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_custom_profile',
+                ]);
+
+                $fieldname = 'profile_field_' . $fieldshortname;
+                $condition->set_config_data([
+                    'profilefield' => $fieldname,
+                    $fieldname . '_operator' => condition_base::TEXT_IS_EQUAL_TO,
+                    $fieldname . '_value' => $cohort->name,
+                ]);
+                $condition->get_record()->set('ruleid', $rule->get('id'));
+                $condition->get_record()->set('sortorder', 0);
+                $condition->get_record()->save();
+
+                $condition = condition_base::get_instance(0, (object)[
+                    'classname' => 'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_custom_profile',
+                ]);
+
+                $fieldname = 'profile_field_' . helper::FIELD_ENROLLED_UNTIL;
+                $condition->set_config_data([
+                    'profilefield' => $fieldname,
+                    $fieldname . '_operator' => condition_base::DATE_IN_THE_FUTURE,
+                    $fieldname . '_value' => 0,
+                ]);
+                $condition->get_record()->set('ruleid', $rule->get('id'));
+                $condition->get_record()->set('sortorder', 0);
+                $condition->get_record()->save();
+
+                $rule->set('enabled', 1);
+                $rule->save();
+
+                cli_writeln("Created rule for cohort '$cohort->name'.");
+            } else {
+                cli_writeln("Rule for $cohort->id already exists. Skipping.");
+            }
+        } else {
+            cli_writeln("Will create rule for cohort '$cohort->name'.");
+        }
+    }
+
+    /**
+     * Helper method to add enrolment method to a course.
+     *
+     * @param stdClass $course Course.
+     * @param stdClass $cohort Cohort.
+     * @param array $options Pass in CLI options.
+     *
+     * @return void
+     */
+    public static function add_enrolment_method(stdClass $course, stdClass $cohort, array $options): void {
+        global $DB;
+
+        $studentrole = $DB->get_record('role', ['shortname' => helper::STUDENT_ROLE]);
+
+        $fields = [
+            'customint1' => $cohort->id,
+            'roleid' => $studentrole->id,
+            'courseid' => $course->id,
+        ];
+
+        if (!$DB->record_exists('enrol', $fields)) {
+            if ($options['run']) {
+                $enrol = enrol_get_plugin('cohort');
+                $enrol->add_instance($course, $fields);
+                cli_writeln("Added enrolment method for cohort ID $cohort->id to course ID $course->id");
+            } else {
+                cli_writeln("Will add enrolment method for cohort ID $cohort->id to course ID $course->id");
+            }
+        } else {
+            cli_writeln("Course ID $course->id already have enrolment method for cohort ID $cohort->id. Skipping.");
+        }
+    }
+
+    /**
+     * Delete all cohorts custom fields.
+     * @return void
+     */
+    public static function delete_cohort_custom_fields(): void {
+        $handler = \core_customfield\handler::get_handler('core_cohort', 'cohort', 0);
+
+        $categories = $handler->get_categories_with_fields();
+        foreach ($categories as $category) {
+            if ($category->get('name') == 'Metadata') {
+                $handler->delete_category($category);
+            }
+        }
     }
 }

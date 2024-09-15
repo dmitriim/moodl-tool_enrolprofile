@@ -25,8 +25,6 @@
 use tool_enrolprofile\install_helper;
 use tool_enrolprofile\helper;
 
-defined('MOODLE_INTERNAL') || die;
-
 /**
  * Perform the post-install procedures.
  */
