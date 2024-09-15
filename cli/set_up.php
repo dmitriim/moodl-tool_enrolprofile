@@ -42,7 +42,7 @@
  *
  * The script has few options. Please run it with --help to see them all.
  *
- * @package    core
+ * @package    tool_enrolprofile
  * @copyright  2024 Dmitrii Metelkin <dnmetelk@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -56,15 +56,15 @@ require(__DIR__ . '/../../../../config.php');
 require_once($CFG->libdir . '/clilib.php');
 require_once($CFG->libdir . '/adminlib.php');
 
-$help = "Command line tool to set up custom enrolment functionality. 
+$help = "Command line tool to set up custom enrolment functionality.
 The script will clean up before execution.
 
 Options:
     -h --help      Print this help.
     --run          Execute Set up. If this option is not set, then the script will be run in a dry mode.
-    --skipcleanup  Skips cleaning up.     
-    --onlycleanup  Only cleans up: deletes all cohort enrolments, all cohorts, all conditions and rules 
-                   as well as custom profile fields.                 
+    --skipcleanup  Skips cleaning up.
+    --onlycleanup  Only cleans up: deletes all cohort enrolments, all cohorts, all conditions and rules
+                   as well as custom profile fields.
 
 Usage:
     # php set_up.php  --run
@@ -134,7 +134,7 @@ try {
             cli_writeln("Will delete required custom profile fields");
         }
     }
-    
+
     if (!$options['onlycleanup']) {
         // Create cohort custom fields.
         $categoryid = install_helper::add_cohort_custom_field_category();

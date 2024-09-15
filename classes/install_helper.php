@@ -120,7 +120,8 @@ class install_helper {
      * @param array $configdata Config data for a field.
      * @return void
      */
-    public static function add_cohort_custom_field(int $categoryid, string $shortname, string $type = 'text', array $configdata = []): void {
+    public static function add_cohort_custom_field(int $categoryid, string $shortname, string $type = 'text',
+                                                   array $configdata = []): void {
         $category = category_controller::create($categoryid);
         $handler = $category->get_handler();
 
@@ -170,7 +171,7 @@ class install_helper {
             $params[] = $courseid;
         }
 
-        $sql = "SELECT DISTINCT t.id, t.rawname  
+        $sql = "SELECT DISTINCT t.id, t.rawname
               FROM {tag} t
               JOIN {tag_instance} ti ON t.id = ti.tagid
              WHERE ti.itemtype = 'course' $where ORDER BY t.id, t.rawname";
