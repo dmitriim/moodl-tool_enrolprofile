@@ -65,6 +65,7 @@ Options:
     --skipcleanup  Skips cleaning up.
     --onlycleanup  Only cleans up: deletes all cohort enrolments, all cohorts, all conditions and rules
                    as well as custom profile fields.
+    --keepuserdata If cleaning up, this option keeps profile fields and user data for all custom profile fields.
 
 Usage:
     # php set_up.php  --run
@@ -75,6 +76,7 @@ list($options, $unrecognised) = cli_get_params([
     'run' => false,
     'skipcleanup' => false,
     'onlycleanup' => false,
+    'keepuserdata' => false,
 ], [
     'h' => 'help'
 ]);
@@ -127,11 +129,13 @@ try {
             cli_writeln("Will delete all cohort custom fields");
         }
 
-        if ($options['run']) {
-            install_helper::delete_profile_custom_fields();
-            cli_writeln("Deleted required custom profile fields");
-        } else {
-            cli_writeln("Will delete required custom profile fields");
+        if (!$options['keepuserdata']) {
+            if ($options['run']) {
+                install_helper::delete_profile_custom_fields();
+                cli_writeln("Deleted required custom profile fields");
+            } else {
+                cli_writeln("Will delete required custom profile fields");
+            }
         }
     }
 
@@ -183,7 +187,20 @@ try {
                 cli_writeln("Will create profile field with shortname '" . helper::ITEM_TYPE_COURSE . "'");
             }
         } else {
-            cli_writeln("Profile field with shortname '" . helper::ITEM_TYPE_COURSE . "' already exists. Skipping.");
+            if ($options['run']) {
+                $param1 = [];
+                foreach (install_helper::get_courses() as $course) {
+                    if ($course->id == SITEID) {
+                        continue;
+                    }
+                    $param1[$course->fullname] = $course->fullname;
+                }
+                $coursefield->param1 = implode("\n", $param1);
+                $DB->update_record('user_info_field', $coursefield);
+                cli_writeln("Updated profile field with shortname '" . helper::ITEM_TYPE_COURSE . "'");
+            } else {
+                cli_writeln("Will Updated profile field with shortname '" . helper::ITEM_TYPE_COURSE . "'");
+            }
         }
 
         // Create autocomplete user profile field Category.
@@ -206,7 +223,17 @@ try {
                 cli_writeln("Will create profile field with shortname '" . helper::ITEM_TYPE_CATEGORY . "'");
             }
         } else {
-            cli_writeln("Profile field with shortname '" . helper::ITEM_TYPE_CATEGORY . "' already exists. Skipping.");
+            if ($options['run']) {
+                $param1 = [];
+                foreach (install_helper::get_categories() as $category) {
+                    $param1[$category->name] = $category->name;
+                }
+                $categoryfield->param1 = implode("\n", $param1);
+                $DB->update_record('user_info_field', $categoryfield);
+                cli_writeln("Updated profile field with shortname '" . helper::ITEM_TYPE_CATEGORY . "'");
+            } else {
+                cli_writeln("Will Updated profile field with shortname '" . helper::ITEM_TYPE_CATEGORY . "'");
+            }
         }
 
         // Create date user profile field active until.
@@ -232,9 +259,8 @@ try {
         if (empty($tagfield)) {
             if ($options['run']) {
                 // Fill the field options with a list of course related tags.
-                $tags = install_helper::get_course_tags();
                 $param1 = [];
-                foreach ($tags as $tag) {
+                foreach (install_helper::get_course_tags() as $tag) {
                     $param1[$tag->rawname] = $tag->rawname;
                 }
                 $extras = [];
@@ -248,7 +274,17 @@ try {
                 cli_writeln("Will create profile field with shortname '" . helper::ITEM_TYPE_TAG . "'");
             }
         } else {
-            cli_writeln("Profile field with shortname '" . helper::ITEM_TYPE_TAG . "' already exists. Skipping.");
+            if ($options['run']) {
+                $param1 = [];
+                foreach (install_helper::get_course_tags() as $tag) {
+                    $param1[$tag->rawname] = $tag->rawname;
+                }
+                $tagfield->param1 = implode("\n", $param1);
+                $DB->update_record('user_info_field', $tagfield);
+                cli_writeln("Updated profile field with shortname '" . helper::ITEM_TYPE_TAG . "'");
+            } else {
+                cli_writeln("Will Updated profile field with shortname '" . helper::ITEM_TYPE_TAG . "'");
+            }
         }
 
         // Go through all tags and create cohort for each tag.
