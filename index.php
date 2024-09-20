@@ -15,22 +15,27 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Plugin administration pages are defined here.
+ * Presets page.
  *
  * @package     tool_enrolprofile
- * @category    admin
  * @copyright   2024 Dmitrii Metelkin <dnmetelk@gmail.com>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+use core_reportbuilder\system_report_factory;
+use tool_enrolprofile\reportbuilder\local\systemreports\presets;
 
-if ($hassiteconfig) {
-    $ADMIN->add('tools', new admin_category('tool_enrolprofile', get_string('pluginname', 'tool_enrolprofile')));
+require_once(__DIR__ . '/../../../config.php');
+require_once($CFG->libdir . '/adminlib.php');
 
-    $ADMIN->add('tool_enrolprofile', new admin_externalpage(
-        'tool_enrolprofile_presets',
-        get_string('managepresets', 'tool_enrolprofile'),
-        new moodle_url('/admin/tool/enrolprofile/index.php')
-    ));
-}
+admin_externalpage_setup('tool_enrolprofile_presets');
+
+$presets = system_report_factory::create(presets::class, context_system::instance(), 'tool_enrolprofile');
+$PAGE->requires->js_call_amd('tool_enrolprofile/presets', 'init');
+
+echo $OUTPUT->header();
+echo $OUTPUT->heading(get_string('managepresets', 'tool_enrolprofile'));
+
+echo $OUTPUT->render_from_template('tool_enrolprofile/addpresetbutton', []);
+echo $presets->output();
+echo $OUTPUT->footer();
