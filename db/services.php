@@ -15,22 +15,22 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Plugin administration pages are defined here.
+ * List of Web Services for the plugin.
  *
  * @package     tool_enrolprofile
- * @category    admin
  * @copyright   2024 Dmitrii Metelkin <dnmetelk@gmail.com>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-if ($hassiteconfig) {
-    $ADMIN->add('tools', new admin_category('tool_enrolprofile', get_string('pluginname', 'tool_enrolprofile')));
-
-    $ADMIN->add('tool_enrolprofile', new admin_externalpage(
-        'tool_enrolprofile_presets',
-        get_string('managepresets', 'tool_enrolprofile'),
-        new moodle_url('/admin/tool/enrolprofile/index.php')
-    ));
-}
+$functions = [
+    'tool_enrolprofile_delete_preset' => [
+        'classname'       => 'tool_enrolprofile\external\delete_preset',
+        'methodname'      => 'execute',
+        'description'     => 'Deletes preset',
+        'type'            => 'write',
+        'capabilities'    => 'moodle/site:config',
+        'ajax'            => true,
+    ],
+];

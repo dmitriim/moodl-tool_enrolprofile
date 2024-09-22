@@ -520,4 +520,49 @@ class helper {
             }
         }
     }
+
+    /**
+     * Gets a list of tags related to courses.
+     *
+     * @param int $courseid Optional to filter by course ID.
+     * @return array
+     */
+    public static function get_course_tags(int $courseid = 0): array {
+        global $DB;
+
+        $params = [];
+        $where = '';
+        if (!empty($courseid)) {
+            $where = " AND ti.itemid = ?";
+            $params[] = $courseid;
+        }
+
+        $sql = "SELECT DISTINCT t.id, t.rawname
+              FROM {tag} t
+              JOIN {tag_instance} ti ON t.id = ti.tagid
+             WHERE ti.itemtype = 'course' $where ORDER BY t.id, t.rawname";
+        return $DB->get_records_sql($sql, $params);
+    }
+
+    /**
+     * Returns a list of courses.
+     *
+     * @return array
+     */
+    public static function get_courses(): array {
+        global $DB;
+
+        return $DB->get_records('course', ['visible' => 1], 'fullname');
+    }
+
+    /**
+     * Get categories.
+     *
+     * @return array
+     */
+    public static function get_categories(): array {
+        global $DB;
+
+        return $DB->get_records('course_categories', ['visible' => 1], 'name');
+    }
 }

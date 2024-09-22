@@ -170,7 +170,7 @@ try {
             if ($options['run']) {
                 // Fill the field options with a list of courses.
                 $param1 = [];
-                foreach (install_helper::get_courses() as $course) {
+                foreach (helper::get_courses() as $course) {
                     if ($course->id == SITEID) {
                         continue;
                     }
@@ -189,7 +189,7 @@ try {
         } else {
             if ($options['run']) {
                 $param1 = [];
-                foreach (install_helper::get_courses() as $course) {
+                foreach (helper::get_courses() as $course) {
                     if ($course->id == SITEID) {
                         continue;
                     }
@@ -209,7 +209,7 @@ try {
             if ($options['run']) {
                 // Fill the field options with a list of categories.
                 $param1 = [];
-                foreach (install_helper::get_categories() as $category) {
+                foreach (helper::get_categories() as $category) {
                     $param1[$category->name] = $category->name;
                 }
                 $extras = [];
@@ -225,7 +225,7 @@ try {
         } else {
             if ($options['run']) {
                 $param1 = [];
-                foreach (install_helper::get_categories() as $category) {
+                foreach (helper::get_categories() as $category) {
                     $param1[$category->name] = $category->name;
                 }
                 $categoryfield->param1 = implode("\n", $param1);
@@ -260,7 +260,7 @@ try {
             if ($options['run']) {
                 // Fill the field options with a list of course related tags.
                 $param1 = [];
-                foreach (install_helper::get_course_tags() as $tag) {
+                foreach (helper::get_course_tags() as $tag) {
                     $param1[$tag->rawname] = $tag->rawname;
                 }
                 $extras = [];
@@ -276,7 +276,7 @@ try {
         } else {
             if ($options['run']) {
                 $param1 = [];
-                foreach (install_helper::get_course_tags() as $tag) {
+                foreach (helper::get_course_tags() as $tag) {
                     $param1[$tag->rawname] = $tag->rawname;
                 }
                 $tagfield->param1 = implode("\n", $param1);
@@ -288,7 +288,7 @@ try {
         }
 
         // Go through all tags and create cohort for each tag.
-        $tags = install_helper::get_course_tags();
+        $tags = helper::get_course_tags();
         foreach ($tags as $tag) {
             $cohort = new stdClass();
             $cohort->contextid = context_system::instance()->id;
@@ -303,7 +303,7 @@ try {
         }
 
         // Go through all categories and for each category create a cohort.
-        foreach (install_helper::get_categories() as $category) {
+        foreach (helper::get_categories() as $category) {
             $cohort = new stdClass();
             $cohort->contextid = context_system::instance()->id;
             $cohort->name = $category->name;
@@ -317,7 +317,7 @@ try {
         }
 
         // Go through each course from each category and create cohort.
-        foreach (install_helper::get_courses() as $course) {
+        foreach (helper::get_courses() as $course) {
             if ($course->id == SITEID) {
                 continue;
             }
@@ -339,7 +339,7 @@ try {
         // - get related course cohort and add an enrolment method for that cohort.
         // - get related category cohort and add an enrolment method for that cohort.
         // - get all tags for the course and for each tag create an enrolment method.
-        foreach (install_helper::get_courses() as $course) {
+        foreach (helper::get_courses() as $course) {
 
             if ($course->id == SITEID) {
                 continue;
@@ -365,7 +365,7 @@ try {
             }
 
             // Tags cohorts.
-            foreach (install_helper::get_course_tags($course->id) as $tag) {
+            foreach (helper::get_course_tags($course->id) as $tag) {
                 if ($cohort = $DB->get_record('cohort', ['name' => $tag->rawname])) {
                     install_helper::add_enrolment_method($course, $cohort, $options);
                 } else {
