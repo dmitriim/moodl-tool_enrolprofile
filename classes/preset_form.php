@@ -43,6 +43,8 @@ class preset_form extends dynamic_form {
         $this->_form->addRule('name', get_string('required'), 'required');
         $this->_form->setType('name', PARAM_TEXT);
 
+        $this->_form->addElement('static', 'error', '');
+
         foreach ($this->get_field_types() as $type) {
             $methodname = 'get_'  . $type . '_options';
             $this->_form->addElement(
@@ -119,6 +121,18 @@ class preset_form extends dynamic_form {
      */
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
+
+        $empty = 0;
+        foreach ($this->get_field_types() as $type) {
+            if (empty($data[$type])) {
+                $empty++;
+            }
+        }
+
+        if ($empty == count($this->get_field_types())) {
+            $errors['error'] = get_string('mustselectentities', 'tool_enrolprofile');
+        }
+
         return $errors;
     }
 

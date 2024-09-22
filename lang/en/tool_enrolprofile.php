@@ -44,3 +44,4 @@ $string['completed:delete'] = 'Preset deleted successfully';
 $string['fieldtype:categories'] = 'Categories';
 $string['fieldtype:courses'] = 'Courses';
 $string['fieldtype:tags'] = 'Tags';
+$string['mustselectentities'] = 'You must select at least one of the following entities';
