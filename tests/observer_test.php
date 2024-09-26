@@ -928,7 +928,7 @@ class observer_test extends advanced_testcase {
 
         $preset = new preset();
         $preset->set('name', $presetname);
-        $preset->set('categories', implode(',', [$category1->id]));
+        $preset->set('category', implode(',', [$category1->id]));
         $preset->save();
 
         preset_created::create([
@@ -936,11 +936,11 @@ class observer_test extends advanced_testcase {
             'other' => [
                 'presetid' => $preset->get('id'),
                 'presetname' => $preset->get('name'),
-                'categories' => $preset->get('categories'),
+                'categories' => $preset->get('category'),
                 'oldcategories' => null,
-                'courses' => $preset->get('courses'),
+                'courses' => $preset->get('course'),
                 'oldcourses' => null,
-                'tags' => $preset->get('tags'),
+                'tags' => $preset->get('tag'),
                 'oldtags' => null,
             ]
         ])->trigger();
@@ -989,7 +989,7 @@ class observer_test extends advanced_testcase {
 
         $preset = new preset();
         $preset->set('name', $presetname);
-        $preset->set('courses', implode(',', [$course11->id, $course22->id, $course31->id]));
+        $preset->set('course', implode(',', [$course11->id, $course22->id, $course31->id]));
         $preset->save();
 
         preset_created::create([
@@ -997,11 +997,11 @@ class observer_test extends advanced_testcase {
             'other' => [
                 'presetid' => $preset->get('id'),
                 'presetname' => $preset->get('name'),
-                'categories' => $preset->get('categories'),
+                'categories' => $preset->get('category'),
                 'oldcategories' => null,
-                'courses' => $preset->get('courses'),
+                'courses' => $preset->get('course'),
                 'oldcourses' => null,
-                'tags' => $preset->get('tags'),
+                'tags' => $preset->get('tag'),
                 'oldtags' => null,
             ]
         ])->trigger();
@@ -1050,7 +1050,7 @@ class observer_test extends advanced_testcase {
 
         $preset = new preset();
         $preset->set('name', $presetname);
-        $preset->set('tags', implode(',', [$tag1->id, $tag2->id, $tag4->id]));
+        $preset->set('tag', implode(',', [$tag1->id, $tag2->id, $tag4->id]));
         $preset->save();
 
         preset_created::create([
@@ -1058,11 +1058,11 @@ class observer_test extends advanced_testcase {
             'other' => [
                 'presetid' => $preset->get('id'),
                 'presetname' => $preset->get('name'),
-                'categories' => $preset->get('categories'),
+                'categories' => $preset->get('category'),
                 'oldcategories' => null,
-                'courses' => $preset->get('courses'),
+                'courses' => $preset->get('course'),
                 'oldcourses' => null,
-                'tags' => $preset->get('tags'),
+                'tags' => $preset->get('tag'),
                 'oldtags' => null,
             ]
         ])->trigger();
@@ -1111,9 +1111,9 @@ class observer_test extends advanced_testcase {
 
         $preset = new preset();
         $preset->set('name', $presetname);
-        $preset->set('categories', implode(',', [$category1->id]));
-        $preset->set('courses', implode(',', [$course21->id, $course31->id]));
-        $preset->set('tags', implode(',', [$tag1->id, $tag5->id]));
+        $preset->set('category', implode(',', [$category1->id]));
+        $preset->set('course', implode(',', [$course21->id, $course31->id]));
+        $preset->set('tag', implode(',', [$tag1->id, $tag5->id]));
         $preset->save();
 
         preset_created::create([
@@ -1121,11 +1121,11 @@ class observer_test extends advanced_testcase {
             'other' => [
                 'presetid' => $preset->get('id'),
                 'presetname' => $preset->get('name'),
-                'categories' => $preset->get('categories'),
+                'categories' => $preset->get('category'),
                 'oldcategories' => null,
-                'courses' => $preset->get('courses'),
+                'courses' => $preset->get('course'),
                 'oldcourses' => null,
-                'tags' => $preset->get('tags'),
+                'tags' => $preset->get('tag'),
                 'oldtags' => null
             ]
         ])->trigger();
@@ -1171,9 +1171,9 @@ class observer_test extends advanced_testcase {
         $presetoldname = $preset->get('name');
         $presetname = 'Updated Preset4';
         $preset->set('name', $presetname);
-        $preset->set('categories', implode(',', [$category3->id]));
-        $preset->set('courses', implode(',', [$course11->id, $course31->id]));
-        $preset->set('tags', implode(',', [$tag3->id]));
+        $preset->set('category', implode(',', [$category3->id]));
+        $preset->set('course', implode(',', [$course11->id, $course31->id]));
+        $preset->set('tag', implode(',', [$tag3->id]));
         $preset->save();
 
         preset_updated::create([
@@ -1181,11 +1181,11 @@ class observer_test extends advanced_testcase {
             'other' => [
                 'presetid' => $preset->get('id'),
                 'presetname' => $preset->get('name'),
-                'categories' => $preset->get('categories'),
+                'categories' => $preset->get('category'),
                 'oldcategories' => implode(',', [$category1->id]),
-                'courses' => $preset->get('courses'),
+                'courses' => $preset->get('course'),
                 'oldcourses' => implode(',', [$course21->id, $course31->id]),
-                'tags' => $preset->get('tags'),
+                'tags' => $preset->get('tag'),
                 'oldtags' => implode(',', [$tag1->id, $tag5->id]),
             ]
         ])->trigger();

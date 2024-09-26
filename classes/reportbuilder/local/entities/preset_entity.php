@@ -97,35 +97,35 @@ class preset_entity extends base {
             });
 
         $columns[] = (new column(
-            'categories',
+            'category',
             new lang_string('preset_entity.categories', 'tool_enrolprofile'),
             $this->get_entity_name()
         ))
             ->add_joins($this->get_joins())
             ->set_type(column::TYPE_TEXT)
-            ->add_field("{$alias}.categories")
+            ->add_field("{$alias}.category")
             ->set_is_sortable(false)
             ->add_callback([self::class, 'render_list'], ['entities' => $categories, 'name' => 'name']);
 
         $columns[] = (new column(
-            'courses',
+            'course',
             new lang_string('preset_entity.courses', 'tool_enrolprofile'),
             $this->get_entity_name()
         ))
             ->add_joins($this->get_joins())
             ->set_type(column::TYPE_TEXT)
-            ->add_field("{$alias}.courses")
+            ->add_field("{$alias}.course")
             ->set_is_sortable(false)
             ->add_callback([self::class, 'render_list'], ['entities' => $courses, 'name' => 'fullname']);
 
         $columns[] = (new column(
-            'tags',
+            'tag',
             new lang_string('preset_entity.tags', 'tool_enrolprofile'),
             $this->get_entity_name()
         ))
             ->add_joins($this->get_joins())
             ->set_type(column::TYPE_TEXT)
-            ->add_field("{$alias}.tags")
+            ->add_field("{$alias}.tag")
             ->set_is_sortable(false)
             ->add_callback([self::class, 'render_list'], ['entities' => $tags, 'name' => 'rawname']);
 

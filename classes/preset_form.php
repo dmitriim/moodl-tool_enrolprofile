@@ -65,7 +65,7 @@ class preset_form extends dynamic_form {
      * @return string[]
      */
     protected function get_field_types(): array {
-        return ['categories', 'courses', 'tags'];
+        return ['category', 'course', 'tag'];
     }
 
     /**
@@ -73,7 +73,7 @@ class preset_form extends dynamic_form {
      *
      * @return array
      */
-    protected function get_categories_options(): array {
+    protected function get_category_options(): array {
         $categories = [];
 
         foreach (helper::get_categories() as $category) {
@@ -88,7 +88,7 @@ class preset_form extends dynamic_form {
      *
      * @return array
      */
-    protected function get_courses_options(): array {
+    protected function get_course_options(): array {
         global $COURSE;
 
         $options = [];
@@ -110,7 +110,7 @@ class preset_form extends dynamic_form {
      *
      * @return array
      */
-    protected function get_tags_options(): array {
+    protected function get_tag_options(): array {
         $options = [];
 
         foreach (helper::get_course_tags() as $option) {
