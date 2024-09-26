@@ -44,6 +44,7 @@ function xmldb_tool_enrolprofile_install() {
             helper::ITEM_TYPE_COURSE => 'Course',
             helper::ITEM_TYPE_CATEGORY => 'Category',
             helper::ITEM_TYPE_TAG => 'Tag',
+            helper::ITEM_TYPE_PRESET => 'Preset',
         ];
         foreach ($profilefields as $shortname => $name) {
             install_helper::add_user_profile_field(

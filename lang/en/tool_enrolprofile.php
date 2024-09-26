@@ -45,3 +45,6 @@ $string['fieldtype:categories'] = 'Categories';
 $string['fieldtype:courses'] = 'Courses';
 $string['fieldtype:tags'] = 'Tags';
 $string['mustselectentities'] = 'You must select at least one of the following entities';
+$string['event:preset_created'] = 'Preset created';
+$string['event:preset_updated'] = 'Preset updated';
+$string['event:preset_deleted'] = 'Preset deleted';

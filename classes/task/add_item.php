@@ -35,17 +35,25 @@ class add_item extends adhoc_task {
     public function execute() {
         global $DB;
 
-        $course = null;
+        $courses = [];
         $data = $this->get_custom_data();
         helper::validate_task_custom_data($data);
 
         $transaction = $DB->start_delegated_transaction();
 
         try {
+            // Covert to a new format if there is existing task with old format of data.
             if (!empty($data->courseid)) {
-                $course = get_course($data->courseid);
+                $data->courseids = [$data->courseid];
             }
-            helper::add_item($data->itemid, $data->itemtype, $data->itemname, $course);
+
+            if (!empty($data->courseids) && is_array($data->courseids)) {
+                list($sql, $params) = $DB->get_in_or_equal($data->courseids, SQL_PARAMS_NAMED);
+                $select = 'id ' . $sql;
+                $courses = $DB->get_records_select('course', $select, $params);
+            }
+
+            helper::add_item($data->itemid, $data->itemtype, $data->itemname, $courses);
             $transaction->allow_commit();
         } catch (Exception $exception) {
             $transaction->rollback($exception);

@@ -20,6 +20,8 @@ use context;
 use core\context\system;
 use core_form\dynamic_form;
 use moodle_url;
+use tool_enrolprofile\event\preset_created;
+use tool_enrolprofile\event\preset_updated;
 
 /**
  * Preset form class.
@@ -87,9 +89,16 @@ class preset_form extends dynamic_form {
      * @return array
      */
     protected function get_courses_options(): array {
+        global $COURSE;
+
         $options = [];
 
         foreach (helper::get_courses() as $option) {
+            // Skip front page course.
+            if ($option->id == $COURSE->id) {
+                continue;
+            }
+
             $options[$option->id] = $option->fullname;
         }
 
@@ -161,6 +170,7 @@ class preset_form extends dynamic_form {
      */
     public function process_dynamic_submission(): \stdClass {
         $data = $this->get_submitted_data();
+        $olddata = new \stdClass();
 
         if (!empty($data->id)) {
             $preset = preset::get_record(['id' => $data->id]);
@@ -175,11 +185,37 @@ class preset_form extends dynamic_form {
                 $data->$type = null;
             }
 
+            $olddata->$type = $preset->get($type);
             $preset->set($type, $data->$type);
         }
 
         $preset->set('name', $data->name);
         $preset->save();
+
+        $other = [
+            'presetid' => $preset->get('id'),
+            'presetname' => $preset->get('name'),
+        ];
+
+        foreach ($this->get_field_types() as $type) {
+            $other[$type] = $data->$type;
+            $other['old' . $type] = $olddata->$type;
+        }
+
+        if (empty($data->id)) {
+            preset_created::create([
+                'context' => $this->get_context_for_dynamic_submission(),
+                'other' => $other,
+            ])->trigger();
+        } else {
+            foreach ($this->get_field_types() as $type) {
+                $other['old' . $type] = $olddata->$type;
+            }
+            preset_updated::create([
+                'context' => $this->get_context_for_dynamic_submission(),
+                'other' => $other,
+            ])->trigger();
+        }
 
         return $preset->to_record();
     }

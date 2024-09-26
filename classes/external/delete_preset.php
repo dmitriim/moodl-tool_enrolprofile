@@ -16,10 +16,12 @@
 
 namespace tool_enrolprofile\external;
 
+use core\context\system;
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_value;
 use invalid_parameter_exception;
+use tool_enrolprofile\event\preset_deleted;
 use tool_enrolprofile\preset;
 
 /**
@@ -57,7 +59,16 @@ class delete_preset extends external_api {
             throw new invalid_parameter_exception('Invalid preset');
         }
 
+        $presetid = $preset->get('id');
         $preset->delete();
+
+        preset_deleted::create([
+            'context' => system::instance(),
+            'other' => [
+                'presetid' => $presetid,
+                'presetname' => $preset->get('name'),
+            ]
+        ])->trigger();
     }
 
     /**

@@ -65,4 +65,16 @@ $observers = [
         'eventname' => '\core\event\course_category_deleted',
         'callback' => '\tool_enrolprofile\observer::course_category_deleted',
     ],
+    [
+        'eventname' => '\tool_enrolprofile\event\preset_created',
+        'callback' => '\tool_enrolprofile\observer::preset_created',
+    ],
+    [
+        'eventname' => '\tool_enrolprofile\event\preset_deleted',
+        'callback' => '\tool_enrolprofile\observer::preset_deleted',
+    ],
+    [
+        'eventname' => '\tool_enrolprofile\event\preset_updated',
+        'callback' => '\tool_enrolprofile\observer::preset_updated',
+    ],
 ];
