@@ -19,9 +19,13 @@ namespace tool_enrolprofile;
 use advanced_testcase;
 use core\context\course;
 use core\context\coursecat;
+use core\context\system;
 use core_customfield\field_controller;
 use core_tag_tag;
 use core\task\manager;
+use tool_enrolprofile\event\preset_created;
+use tool_enrolprofile\event\preset_deleted;
+use tool_enrolprofile\event\preset_updated;
 
 
 /**
@@ -54,6 +58,12 @@ class observer_test extends advanced_testcase {
     protected $categoryprofilefield;
 
     /**
+     * Category profile field for testing.
+     * @var \stdClass
+     */
+    protected $presetprofilefield;
+
+    /**
      * Set up before every test.
      *
      * @return void
@@ -65,6 +75,7 @@ class observer_test extends advanced_testcase {
         $this->tagprofilefield = $this->add_user_profile_field(helper::ITEM_TYPE_TAG, 'autocomplete');
         $this->courseprofilefield = $this->add_user_profile_field(helper::ITEM_TYPE_COURSE, 'autocomplete');
         $this->categoryprofilefield = $this->add_user_profile_field(helper::ITEM_TYPE_CATEGORY, 'autocomplete');
+        $this->presetprofilefield = $this->add_user_profile_field(helper::ITEM_TYPE_PRESET, 'autocomplete');
 
         $this->create_cohort_custom_field(helper::COHORT_FIELD_ID);
         $this->create_cohort_custom_field(helper::COHORT_FIELD_TYPE);
@@ -871,5 +882,395 @@ class observer_test extends advanced_testcase {
 
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertEmpty($enrol);
+    }
+
+    /**
+     * Check logic when preset created.
+     */
+    public function test_preset_logic() {
+        global $DB;
+
+        $category1 = $this->getDataGenerator()->create_category();
+        $category2 = $this->getDataGenerator()->create_category();
+        $category3 = $this->getDataGenerator()->create_category();
+
+        $course11 = $this->getDataGenerator()->create_course(['category' => $category1->id]);
+        $course12 = $this->getDataGenerator()->create_course(['category' => $category1->id]);
+        $course21 = $this->getDataGenerator()->create_course(['category' => $category2->id]);
+        $course22 = $this->getDataGenerator()->create_course(['category' => $category2->id]);
+        $course31 = $this->getDataGenerator()->create_course(['category' => $category3->id]);
+        $course32 = $this->getDataGenerator()->create_course(['category' => $category3->id]);
+
+        core_tag_tag::set_item_tags('core', 'course', $course11->id, course::instance($course11->id), [
+            'tag1',
+            'tag2',
+        ]);
+
+        core_tag_tag::set_item_tags('core', 'course', $course21->id, course::instance($course21->id), [
+            'tag3',
+            'tag4',
+        ]);
+
+        core_tag_tag::set_item_tags('core', 'course', $course31->id, course::instance($course31->id), [
+            'tag5',
+        ]);
+
+        $tag1 = $DB->get_record('tag', ['rawname' => 'tag1']);
+        $tag2 = $DB->get_record('tag', ['rawname' => 'tag2']);
+        $tag3 = $DB->get_record('tag', ['rawname' => 'tag3']);
+        $tag4 = $DB->get_record('tag', ['rawname' => 'tag4']);
+        $tag5 = $DB->get_record('tag', ['rawname' => 'tag5']);
+
+        // Preset with categories only.
+        $presetname = 'Preset1';
+        $this->assertEmpty($DB->get_record('cohort', ['name' => $presetname]));
+        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]));
+
+        $preset = new preset();
+        $preset->set('name', $presetname);
+        $preset->set('categories', implode(',', [$category1->id]));
+        $preset->save();
+
+        preset_created::create([
+            'context' => system::instance(),
+            'other' => [
+                'presetid' => $preset->get('id'),
+                'presetname' => $preset->get('name'),
+                'categories' => $preset->get('categories'),
+                'oldcategories' => null,
+                'courses' => $preset->get('courses'),
+                'oldcourses' => null,
+                'tags' => $preset->get('tags'),
+                'oldtags' => null,
+            ]
+        ])->trigger();
+
+        $this->execute_tasks();
+
+        $presetcohort = $DB->get_record('cohort', ['name' => $presetname]);
+        $this->assertNotEmpty($presetcohort);
+
+        $presetcohort = cohort_get_cohort($presetcohort->id, coursecat::instance($category1->id), true);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->presetprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($presetname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($presetcohort->id, $rule->cohortid);
+        $this->assertEquals(1, $rule->enabled);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assertCount(2, $conditions);
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course12->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course21->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course22->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course31->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course32->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+
+        // Preset with courses only.
+        $presetname = 'Preset2';
+        $this->assertEmpty($DB->get_record('cohort', ['name' => $presetname]));
+        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]));
+
+        $preset = new preset();
+        $preset->set('name', $presetname);
+        $preset->set('courses', implode(',', [$course11->id, $course22->id, $course31->id]));
+        $preset->save();
+
+        preset_created::create([
+            'context' => system::instance(),
+            'other' => [
+                'presetid' => $preset->get('id'),
+                'presetname' => $preset->get('name'),
+                'categories' => $preset->get('categories'),
+                'oldcategories' => null,
+                'courses' => $preset->get('courses'),
+                'oldcourses' => null,
+                'tags' => $preset->get('tags'),
+                'oldtags' => null,
+            ]
+        ])->trigger();
+
+        $this->execute_tasks();
+
+        $presetcohort = $DB->get_record('cohort', ['name' => $presetname]);
+        $this->assertNotEmpty($presetcohort);
+
+        $presetcohort = cohort_get_cohort($presetcohort->id, coursecat::instance($category1->id), true);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->presetprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($presetname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($presetcohort->id, $rule->cohortid);
+        $this->assertEquals(1, $rule->enabled);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assertCount(2, $conditions);
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course12->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course21->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course22->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course31->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course32->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+
+        // Preset with tags only.
+        $presetname = 'Preset3';
+        $this->assertEmpty($DB->get_record('cohort', ['name' => $presetname]));
+        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]));
+
+        $preset = new preset();
+        $preset->set('name', $presetname);
+        $preset->set('tags', implode(',', [$tag1->id, $tag2->id, $tag4->id]));
+        $preset->save();
+
+        preset_created::create([
+            'context' => system::instance(),
+            'other' => [
+                'presetid' => $preset->get('id'),
+                'presetname' => $preset->get('name'),
+                'categories' => $preset->get('categories'),
+                'oldcategories' => null,
+                'courses' => $preset->get('courses'),
+                'oldcourses' => null,
+                'tags' => $preset->get('tags'),
+                'oldtags' => null,
+            ]
+        ])->trigger();
+
+        $this->execute_tasks();
+
+        $presetcohort = $DB->get_record('cohort', ['name' => $presetname]);
+        $this->assertNotEmpty($presetcohort);
+
+        $presetcohort = cohort_get_cohort($presetcohort->id, coursecat::instance($category1->id), true);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->presetprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($presetname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($presetcohort->id, $rule->cohortid);
+        $this->assertEquals(1, $rule->enabled);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assertCount(2, $conditions);
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course12->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course21->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course22->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course31->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course32->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+
+        // Preset with mix of data.
+        $presetname = 'Preset4';
+        $this->assertEmpty($DB->get_record('cohort', ['name' => $presetname]));
+        $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]));
+
+        $preset = new preset();
+        $preset->set('name', $presetname);
+        $preset->set('categories', implode(',', [$category1->id]));
+        $preset->set('courses', implode(',', [$course21->id, $course31->id]));
+        $preset->set('tags', implode(',', [$tag1->id, $tag5->id]));
+        $preset->save();
+
+        preset_created::create([
+            'context' => system::instance(),
+            'other' => [
+                'presetid' => $preset->get('id'),
+                'presetname' => $preset->get('name'),
+                'categories' => $preset->get('categories'),
+                'oldcategories' => null,
+                'courses' => $preset->get('courses'),
+                'oldcourses' => null,
+                'tags' => $preset->get('tags'),
+                'oldtags' => null
+            ]
+        ])->trigger();
+
+        $this->execute_tasks();
+
+        $presetcohort = $DB->get_record('cohort', ['name' => $presetname]);
+        $this->assertNotEmpty($presetcohort);
+
+        $presetcohort = cohort_get_cohort($presetcohort->id, coursecat::instance($category1->id), true);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->presetprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($presetname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($presetcohort->id, $rule->cohortid);
+        $this->assertEquals(1, $rule->enabled);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assertCount(2, $conditions);
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course12->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course21->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course22->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course31->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course32->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+
+        // UPDATE last preset.
+        $presetoldname = $preset->get('name');
+        $presetname = 'Updated Preset4';
+        $preset->set('name', $presetname);
+        $preset->set('categories', implode(',', [$category3->id]));
+        $preset->set('courses', implode(',', [$course11->id, $course31->id]));
+        $preset->set('tags', implode(',', [$tag3->id]));
+        $preset->save();
+
+        preset_updated::create([
+            'context' => system::instance(),
+            'other' => [
+                'presetid' => $preset->get('id'),
+                'presetname' => $preset->get('name'),
+                'categories' => $preset->get('categories'),
+                'oldcategories' => implode(',', [$category1->id]),
+                'courses' => $preset->get('courses'),
+                'oldcourses' => implode(',', [$course21->id, $course31->id]),
+                'tags' => $preset->get('tags'),
+                'oldtags' => implode(',', [$tag1->id, $tag5->id]),
+            ]
+        ])->trigger();
+
+        $this->execute_tasks();
+
+        $presetcohort = $DB->get_record('cohort', ['name' => $presetname]);
+        $this->assertNotEmpty($presetcohort);
+
+        $presetcohort = cohort_get_cohort($presetcohort->id, coursecat::instance($category1->id), true);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->presetprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertTrue(in_array($presetname, explode("\n", $profilefielddata)));
+        $this->assertFalse(in_array($presetoldname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]);
+        $this->assertNotEmpty($rule);
+        $this->assertEquals($presetcohort->id, $rule->cohortid);
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course12->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course21->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course22->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course31->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course32->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
+        );
+
+        // Now delete preset.
+        $presetid = $preset->get('id');
+        $presetcohortid = $presetcohort->id;
+        $preset->delete();
+
+        preset_deleted::create([
+            'context' => system::instance(),
+            'other' => [
+                'presetid' => $presetid,
+                'presetname' => $preset->get('name'),
+            ]
+        ])->trigger();
+
+        $this->execute_tasks();
+
+        $presetcohort = $DB->get_record('cohort', ['name' => $presetname]);
+        $this->assertEmpty($presetcohort);
+
+        $presetcohort = cohort_get_cohort($presetcohortid, coursecat::instance($category1->id), true);
+        $this->assertEmpty($presetcohort);
+
+        $profilefielddata = $DB->get_field('user_info_field', 'param1', ['id' => $this->presetprofilefield->id]);
+        $this->assertNotEmpty($profilefielddata);
+        $this->assertFalse(in_array($presetname, explode("\n", $profilefielddata)));
+        $this->assertFalse(in_array($presetoldname, explode("\n", $profilefielddata)));
+
+        $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]);
+        $this->assertEmpty($rule);
+
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohortid])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course12->id, 'enrol' => 'cohort', 'customint1' => $presetcohortid])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course21->id, 'enrol' => 'cohort', 'customint1' => $presetcohortid])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course22->id, 'enrol' => 'cohort', 'customint1' => $presetcohortid])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course31->id, 'enrol' => 'cohort', 'customint1' => $presetcohortid])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course32->id, 'enrol' => 'cohort', 'customint1' => $presetcohortid])
+        );
     }
 }

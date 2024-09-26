@@ -54,6 +54,11 @@ class helper {
     public const ITEM_TYPE_COURSE = 'course';
 
     /**
+     * Preset item type.
+     */
+    public const ITEM_TYPE_PRESET = 'preset';
+
+    /**
      * Field shortname
      */
     public const FIELD_ENROLLED_UNTIL = 'enrolleduntil';
@@ -84,10 +89,10 @@ class helper {
      * @param int $itemid Item ID number
      * @param string $itemtype Item type (tag, course, category).
      * @param string $itemname Item name.
-     * @param stdClass|null $course Course to set up enrolment method. If not set, the no enrolment method will be created.
+     * @param array $courses Course to set up enrolment method. If not set, the no enrolment method will be created.
      * @return void
      */
-    public static function add_item(int $itemid, string $itemtype, string $itemname, ?stdClass $course = null): void {
+    public static function add_item(int $itemid, string $itemtype, string $itemname, array $courses = []): void {
         $cohort = self::get_cohort_by_item($itemid, $itemtype);
 
         if (empty($cohort)) {
@@ -111,8 +116,12 @@ class helper {
         self::add_profile_field_item($itemtype, $itemname);
 
         // Create enrolment method for the cohort for a given course.
-        if (!empty($course)) {
-            self::add_enrolment_method($course, $cohort);
+        if (!empty($courses)) {
+            foreach ($courses as $course) {
+                if (!empty($course)) {
+                    self::add_enrolment_method($course, $cohort);
+                }
+            }
         }
     }
 
@@ -515,7 +524,7 @@ class helper {
      */
     public static function validate_task_custom_data(stdClass $data, array $fields = ['itemid', 'itemtype', 'itemname']): void {
         foreach ($fields as $field) {
-            if (empty($data->$field)) {
+            if (!object_property_exists($data, $field)) {
                 throw new coding_exception('Missing required field: ' . $field);
             }
         }
@@ -538,9 +547,10 @@ class helper {
         }
 
         $sql = "SELECT DISTINCT t.id, t.rawname
-              FROM {tag} t
-              JOIN {tag_instance} ti ON t.id = ti.tagid
-             WHERE ti.itemtype = 'course' $where ORDER BY t.id, t.rawname";
+                           FROM {tag} t
+                           JOIN {tag_instance} ti ON t.id = ti.tagid
+                          WHERE ti.itemtype = 'course' $where
+                       ORDER BY t.id, t.rawname";
         return $DB->get_records_sql($sql, $params);
     }
 
@@ -564,5 +574,40 @@ class helper {
         global $DB;
 
         return $DB->get_records('course_categories', ['visible' => 1], 'name');
+    }
+
+    /**
+     * Return a list of courses for a given categories.
+     *
+     * @param array $categoryids A list of category IDs.
+     * @return array
+     */
+    public static function get_courses_by_categories(array $categoryids): array {
+        global $DB;
+
+        list($sql, $params) = $DB->get_in_or_equal($categoryids, SQL_PARAMS_NAMED);
+        $select = 'category ' . $sql;
+
+        return $DB->get_records_select('course', $select, $params);
+    }
+
+    /**
+     * Return a list of courses for a given tags.
+     *
+     * @param array $tagids A list of tag IDs.
+     * @return array
+     */
+    public static function get_courses_by_tags(array $tagids): array {
+        global $DB;
+
+        list($select, $params) = $DB->get_in_or_equal($tagids, SQL_PARAMS_NAMED);
+        $where = 'ti.tagid '. $select;
+
+        $sql = "SELECT DISTINCT c.*
+                           FROM {course} c
+                           JOIN {tag_instance} ti ON ti.itemid = c.id
+                          WHERE ti.itemtype = 'course' AND $where";
+
+        return $DB->get_records_sql($sql, $params);
     }
 }

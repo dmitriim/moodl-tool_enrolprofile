@@ -27,6 +27,9 @@ use core\event\tag_removed;
 use core\event\tag_deleted;
 use core\event\tag_updated;
 use core\task\manager;
+use tool_enrolprofile\event\preset_created;
+use tool_enrolprofile\event\preset_deleted;
+use tool_enrolprofile\event\preset_updated;
 
 /**
  * Event observer class.
@@ -66,7 +69,7 @@ class observer {
             'itemid' => $event->other['tagid'],
             'itemtype' => helper::ITEM_TYPE_TAG,
             'itemname' => $event->other['tagrawname'],
-            'courseid' => $event->other['itemid'],
+            'courseids' => [$event->other['itemid']],
         ]);
     }
 
@@ -133,7 +136,7 @@ class observer {
             'itemid' => $course->id,
             'itemtype' => helper::ITEM_TYPE_COURSE,
             'itemname' => $course->{helper::COURSE_NAME},
-            'courseid' => $course->id,
+            'courseids' => [$course->id],
         ]);
 
         $category = $DB->get_record('course_categories', ['id' => $course->category]);
@@ -141,7 +144,7 @@ class observer {
             'itemid' => $category->id,
             'itemtype' => helper::ITEM_TYPE_CATEGORY,
             'itemname' => $category->name,
-            'courseid' => $course->id,
+            'courseids' => [$course->id],
         ]);
     }
 
@@ -230,6 +233,88 @@ class observer {
             'itemid' => $categoryid,
             'itemtype' => helper::ITEM_TYPE_CATEGORY,
             'itemname' => $categoryname,
+        ]);
+    }
+
+    /**
+     * Process preset_created event.
+     *
+     * @param preset_created $event The event.
+     */
+    public static function preset_created(preset_created $event): void {
+        $courseids = [];
+
+        if (!empty($event->other['categories'])) {
+            $catcourses = array_keys(
+                helper::get_courses_by_categories(explode(',', $event->other['categories']))
+            );
+
+            $courseids = array_unique(array_merge($courseids, $catcourses));
+        }
+
+        if (!empty($event->other['courses'])) {
+            $courses = explode(',', $event->other['courses']);
+            $courseids = array_unique(array_merge($courseids, $courses));
+
+        }
+
+        if (!empty($event->other['tags'])) {
+            $tagcourses = array_keys(
+                helper::get_courses_by_tags(explode(',', $event->other['tags']))
+            );
+            $courseids = array_values(array_unique(array_merge($courseids, $tagcourses)));
+        }
+
+        self::queue_adhoc_task('add_item', [
+            'itemid' => $event->other['presetid'],
+            'itemtype' => helper::ITEM_TYPE_PRESET,
+            'itemname' => $event->other['presetname'],
+            'courseids' => $courseids,
+        ]);
+    }
+
+    /**
+     * Process preset_deleted event.
+     *
+     * @param preset_deleted $event The event.
+     */
+    public static function preset_deleted(preset_deleted $event): void {
+
+        $presetid = $event->other['presetid'];
+        $presetname = $event->other['presetname'];
+
+        self::queue_adhoc_task('remove_item', [
+            'itemid' => $presetid,
+            'itemtype' => helper::ITEM_TYPE_PRESET,
+            'itemname' => $presetname,
+        ]);
+    }
+
+    /**
+     * Process preset_updated event.
+     *
+     * @param preset_updated $event The event.
+     */
+    public static function preset_updated(preset_updated $event): void {
+        $presetid = $event->other['presetid'];
+        $presetname = $event->other['presetname'];
+
+        self::queue_adhoc_task('rename_item', [
+            'itemid' => $presetid,
+            'itemtype' => helper::ITEM_TYPE_PRESET,
+            'itemname' => $presetname,
+        ]);
+
+        self::queue_adhoc_task('update_preset_data', [
+            'itemid' => $presetid,
+            'itemtype' => helper::ITEM_TYPE_PRESET,
+            'itemname' => $presetname,
+            'categories' => $event->other['categories'],
+            'oldcategories' => $event->other['oldcategories'],
+            'courses' => $event->other['courses'],
+            'oldcourses' => $event->other['oldcourses'],
+            'tags' => $event->other['tags'],
+            'oldtags' => $event->other['oldtags'],
         ]);
     }
 }
