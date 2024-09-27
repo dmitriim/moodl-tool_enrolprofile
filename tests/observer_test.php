@@ -148,6 +148,27 @@ class observer_test extends advanced_testcase {
     }
 
     /**
+     * Trigger preset_created event.
+     *
+     * @param preset $preset
+     */
+    protected function trigger_preset_created(preset $preset): void {
+        preset_created::create([
+            'context' => system::instance(),
+            'other' => [
+                'presetid' => $preset->get('id'),
+                'presetname' => $preset->get('name'),
+                'categories' => $preset->get('category'),
+                'oldcategories' => null,
+                'courses' => $preset->get('course'),
+                'oldcourses' => null,
+                'tags' => $preset->get('tag'),
+                'oldtags' => null
+            ]
+        ])->trigger();
+    }
+
+    /**
      * Check logic when adding a tag.
      */
     public function test_tag_added(): void {
@@ -928,23 +949,10 @@ class observer_test extends advanced_testcase {
 
         $preset = new preset();
         $preset->set('name', $presetname);
-        $preset->set('categories', implode(',', [$category1->id]));
+        $preset->set('category', implode(',', [$category1->id]));
         $preset->save();
 
-        preset_created::create([
-            'context' => system::instance(),
-            'other' => [
-                'presetid' => $preset->get('id'),
-                'presetname' => $preset->get('name'),
-                'categories' => $preset->get('categories'),
-                'oldcategories' => null,
-                'courses' => $preset->get('courses'),
-                'oldcourses' => null,
-                'tags' => $preset->get('tags'),
-                'oldtags' => null,
-            ]
-        ])->trigger();
-
+        $this->trigger_preset_created($preset);
         $this->execute_tasks();
 
         $presetcohort = $DB->get_record('cohort', ['name' => $presetname]);
@@ -989,23 +997,9 @@ class observer_test extends advanced_testcase {
 
         $preset = new preset();
         $preset->set('name', $presetname);
-        $preset->set('courses', implode(',', [$course11->id, $course22->id, $course31->id]));
+        $preset->set('course', implode(',', [$course11->id, $course22->id, $course31->id]));
         $preset->save();
-
-        preset_created::create([
-            'context' => system::instance(),
-            'other' => [
-                'presetid' => $preset->get('id'),
-                'presetname' => $preset->get('name'),
-                'categories' => $preset->get('categories'),
-                'oldcategories' => null,
-                'courses' => $preset->get('courses'),
-                'oldcourses' => null,
-                'tags' => $preset->get('tags'),
-                'oldtags' => null,
-            ]
-        ])->trigger();
-
+        $this->trigger_preset_created($preset);
         $this->execute_tasks();
 
         $presetcohort = $DB->get_record('cohort', ['name' => $presetname]);
@@ -1050,23 +1044,10 @@ class observer_test extends advanced_testcase {
 
         $preset = new preset();
         $preset->set('name', $presetname);
-        $preset->set('tags', implode(',', [$tag1->id, $tag2->id, $tag4->id]));
+        $preset->set('tag', implode(',', [$tag1->id, $tag2->id, $tag4->id]));
         $preset->save();
 
-        preset_created::create([
-            'context' => system::instance(),
-            'other' => [
-                'presetid' => $preset->get('id'),
-                'presetname' => $preset->get('name'),
-                'categories' => $preset->get('categories'),
-                'oldcategories' => null,
-                'courses' => $preset->get('courses'),
-                'oldcourses' => null,
-                'tags' => $preset->get('tags'),
-                'oldtags' => null,
-            ]
-        ])->trigger();
-
+        $this->trigger_preset_created($preset);
         $this->execute_tasks();
 
         $presetcohort = $DB->get_record('cohort', ['name' => $presetname]);
@@ -1111,25 +1092,12 @@ class observer_test extends advanced_testcase {
 
         $preset = new preset();
         $preset->set('name', $presetname);
-        $preset->set('categories', implode(',', [$category1->id]));
-        $preset->set('courses', implode(',', [$course21->id, $course31->id]));
-        $preset->set('tags', implode(',', [$tag1->id, $tag5->id]));
+        $preset->set('category', implode(',', [$category1->id]));
+        $preset->set('course', implode(',', [$course21->id, $course31->id]));
+        $preset->set('tag', implode(',', [$tag1->id, $tag5->id]));
         $preset->save();
 
-        preset_created::create([
-            'context' => system::instance(),
-            'other' => [
-                'presetid' => $preset->get('id'),
-                'presetname' => $preset->get('name'),
-                'categories' => $preset->get('categories'),
-                'oldcategories' => null,
-                'courses' => $preset->get('courses'),
-                'oldcourses' => null,
-                'tags' => $preset->get('tags'),
-                'oldtags' => null
-            ]
-        ])->trigger();
-
+        $this->trigger_preset_created($preset);
         $this->execute_tasks();
 
         $presetcohort = $DB->get_record('cohort', ['name' => $presetname]);
@@ -1171,9 +1139,9 @@ class observer_test extends advanced_testcase {
         $presetoldname = $preset->get('name');
         $presetname = 'Updated Preset4';
         $preset->set('name', $presetname);
-        $preset->set('categories', implode(',', [$category3->id]));
-        $preset->set('courses', implode(',', [$course11->id, $course31->id]));
-        $preset->set('tags', implode(',', [$tag3->id]));
+        $preset->set('category', implode(',', [$category3->id]));
+        $preset->set('course', implode(',', [$course11->id, $course31->id]));
+        $preset->set('tag', implode(',', [$tag3->id]));
         $preset->save();
 
         preset_updated::create([
@@ -1181,11 +1149,11 @@ class observer_test extends advanced_testcase {
             'other' => [
                 'presetid' => $preset->get('id'),
                 'presetname' => $preset->get('name'),
-                'categories' => $preset->get('categories'),
+                'categories' => $preset->get('category'),
                 'oldcategories' => implode(',', [$category1->id]),
-                'courses' => $preset->get('courses'),
+                'courses' => $preset->get('course'),
                 'oldcourses' => implode(',', [$course21->id, $course31->id]),
-                'tags' => $preset->get('tags'),
+                'tags' => $preset->get('tag'),
                 'oldtags' => implode(',', [$tag1->id, $tag5->id]),
             ]
         ])->trigger();
@@ -1271,6 +1239,385 @@ class observer_test extends advanced_testcase {
         );
         $this->assertEmpty(
             $DB->get_record('enrol', ['courseid' => $course32->id, 'enrol' => 'cohort', 'customint1' => $presetcohortid])
+        );
+    }
+
+    /**
+     * Test preset enrolment method added when tag added to a course.
+     */
+    public function test_preset_enrolment_added_when_tag_added() {
+        global $DB;
+
+        $category = $this->getDataGenerator()->create_category();
+        $course = $this->getDataGenerator()->create_course(['category' => $category->id]);
+        $tag = $this->getDataGenerator()->create_tag();
+
+        $preset1name = 'Test preset 1';
+        $preset1 = new preset();
+        $preset1->set('name', $preset1name);
+        $preset1->set('tag', implode(',', [$tag->id]));
+        $preset1->save();
+
+        $this->trigger_preset_created($preset1);
+
+        $preset2name = 'Test preset 2';
+        $preset2 = new preset();
+        $preset2->set('name', $preset2name);
+        $preset2->set('tag', implode(',', [$tag->id]));
+        $preset2->save();
+
+        $this->trigger_preset_created($preset2);
+
+        core_tag_tag::set_item_tags('core', 'course', $course->id, course::instance($course->id), [$tag->rawname]);
+        $this->execute_tasks();
+
+        $preset1cohort = $DB->get_record('cohort', ['name' => $preset1name]);
+        $this->assertNotEmpty($preset1cohort);
+
+        $preset2cohort = $DB->get_record('cohort', ['name' => $preset2name]);
+        $this->assertNotEmpty($preset2cohort);
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset2cohort->id])
+        );
+    }
+
+    /**
+     * Test preset enrolment method added when tag added to a course.
+     */
+    public function test_preset_enrolment_deleted_when_tag_deleted() {
+        global $DB;
+
+        $category = $this->getDataGenerator()->create_category();
+        $course = $this->getDataGenerator()->create_course(['category' => $category->id]);
+        $tag = $this->getDataGenerator()->create_tag();
+
+        $preset1name = 'Test preset 1';
+        $preset1 = new preset();
+        $preset1->set('name', $preset1name);
+        $preset1->set('tag', implode(',', [$tag->id]));
+        $preset1->save();
+        $this->trigger_preset_created($preset1);
+
+        // Preset 2 has this course as part of course items.
+        // This should keep preset cohort after the tag is deleted.
+        $preset2name = 'Test preset 2';
+        $preset2 = new preset();
+        $preset2->set('name', $preset2name);
+        $preset2->set('course', implode(',', [$course->id]));
+        $preset2->set('tag', implode(',', [$tag->id]));
+        $preset2->save();
+        $this->trigger_preset_created($preset2);
+
+        // Preset 3 has this course as part of category items.
+        // This should keep preset cohort after the tag is deleted.
+        $preset2name = 'Test preset 3';
+        $preset2 = new preset();
+        $preset2->set('name', $preset2name);
+        $preset2->set('category', implode(',', [$category->id]));
+        $preset2->set('tag', implode(',', [$tag->id]));
+        $preset2->save();
+        $this->trigger_preset_created($preset2);
+
+        core_tag_tag::set_item_tags('core', 'course', $course->id, course::instance($course->id), [$tag->rawname]);
+        $this->execute_tasks();
+
+        $preset1cohort = $DB->get_record('cohort', ['name' => $preset1name]);
+        $this->assertNotEmpty($preset1cohort);
+
+        $preset2cohort = $DB->get_record('cohort', ['name' => $preset2name]);
+        $this->assertNotEmpty($preset2cohort);
+
+        $preset3cohort = $DB->get_record('cohort', ['name' => $preset2name]);
+        $this->assertNotEmpty($preset3cohort);
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset2cohort->id])
+        );
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset3cohort->id])
+        );
+
+        core_tag_tag::delete_tags([$tag->id]);
+        $this->execute_tasks();
+
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+
+        // Preset 2 has this course as part of course items. Should kee[ enrolment.
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset2cohort->id])
+        );
+
+        // Preset 3 has this course as part of category items. Should keep enrolment.
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset3cohort->id])
+        );
+    }
+
+    /**
+     * Test preset enrolment method added when tag added to a course.
+     */
+    public function test_preset_enrolment_deleted_when_tag_removed() {
+        global $DB;
+
+        $category = $this->getDataGenerator()->create_category();
+        $course = $this->getDataGenerator()->create_course(['category' => $category->id]);
+        $tag = $this->getDataGenerator()->create_tag();
+
+        $preset1name = 'Test preset 1';
+        $preset1 = new preset();
+        $preset1->set('name', $preset1name);
+        $preset1->set('tag', implode(',', [$tag->id]));
+        $preset1->save();
+        $this->trigger_preset_created($preset1);
+
+        // Preset 2 has this course as part of course items.
+        // This should keep preset cohort after the tag is deleted.
+        $preset2name = 'Test preset 2';
+        $preset2 = new preset();
+        $preset2->set('name', $preset2name);
+        $preset2->set('course', implode(',', [$course->id]));
+        $preset2->set('tag', implode(',', [$tag->id]));
+        $preset2->save();
+        $this->trigger_preset_created($preset2);
+
+        // Preset 3 has this course as part of category items.
+        // This should keep preset cohort after the tag is deleted.
+        $preset2name = 'Test preset 3';
+        $preset2 = new preset();
+        $preset2->set('name', $preset2name);
+        $preset2->set('category', implode(',', [$category->id]));
+        $preset2->set('tag', implode(',', [$tag->id]));
+        $preset2->save();
+        $this->trigger_preset_created($preset2);
+
+        core_tag_tag::set_item_tags('core', 'course', $course->id, course::instance($course->id), [$tag->rawname]);
+        $this->execute_tasks();
+
+        $preset1cohort = $DB->get_record('cohort', ['name' => $preset1name]);
+        $this->assertNotEmpty($preset1cohort);
+
+        $preset2cohort = $DB->get_record('cohort', ['name' => $preset2name]);
+        $this->assertNotEmpty($preset2cohort);
+
+        $preset3cohort = $DB->get_record('cohort', ['name' => $preset2name]);
+        $this->assertNotEmpty($preset3cohort);
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset2cohort->id])
+        );
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset3cohort->id])
+        );
+
+        core_tag_tag::remove_item_tag('core', 'course', $course->id, $tag->rawname);
+        $this->execute_tasks();
+
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+
+        // Preset 2 has this course as part of course items. Should kee[ enrolment.
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset2cohort->id])
+        );
+
+        // Preset 3 has this course as part of category items. Should keep enrolment.
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $preset3cohort->id])
+        );
+    }
+
+    /**
+     * Test category preset enrolment method when course created.
+     */
+    public function test_preset_enrolment_added_when_course_created() {
+        global $DB;
+
+        $category = $this->getDataGenerator()->create_category();
+
+        $preset1name = 'Test preset 1';
+        $preset1 = new preset();
+        $preset1->set('name', $preset1name);
+        $preset1->set('category', implode(',', [$category->id]));
+        $preset1->save();
+
+        $this->trigger_preset_created($preset1);
+        $this->execute_tasks();
+
+        $preset1cohort = $DB->get_record('cohort', ['name' => $preset1name]);
+        $this->assertNotEmpty($preset1cohort);
+
+        $course1 = $this->getDataGenerator()->create_course(['category' => $category->id]);
+        $course2 = $this->getDataGenerator()->create_course(['category' => $category->id]);
+        $course3 = $this->getDataGenerator()->create_course();
+
+        $this->execute_tasks();
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course2->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course3->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+    }
+
+    /**
+     * Test preset enrolment method deleted when course deleted.
+     */
+    public function test_preset_enrolment_deleted_when_category_deleted() {
+        global $DB;
+
+        $category = $this->getDataGenerator()->create_category();
+
+        $preset1name = 'Test preset 1';
+        $preset1 = new preset();
+        $preset1->set('name', $preset1name);
+        $preset1->set('category', implode(',', [$category->id]));
+        $preset1->save();
+
+        $this->trigger_preset_created($preset1);
+        $this->execute_tasks();
+
+        $preset1cohort = $DB->get_record('cohort', ['name' => $preset1name]);
+        $this->assertNotEmpty($preset1cohort);
+
+        $course1 = $this->getDataGenerator()->create_course(['category' => $category->id]);
+        $course2 = $this->getDataGenerator()->create_course(['category' => $category->id]);
+        $course3 = $this->getDataGenerator()->create_course();
+
+        $this->execute_tasks();
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course2->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course3->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+    }
+
+    /**
+     * Check logic when moving a course to a different category.
+     */
+    public function test_preset_enrolment_updated_course_moved_to_different_category(): void {
+        global $DB;
+
+        $category1 = $this->getDataGenerator()->create_category();
+        $category2 = $this->getDataGenerator()->create_category();
+        $course1 = $this->getDataGenerator()->create_course(['category' => $category1->id]);
+        $course2 = $this->getDataGenerator()->create_course(['category' => $category1->id]);
+
+        $preset1name = 'Test preset 1';
+        $preset1 = new preset();
+        $preset1->set('name', $preset1name);
+        $preset1->set('category', implode(',', [$category1->id]));
+        $preset1->save();
+        $this->trigger_preset_created($preset1);
+
+        $preset2name = 'Test preset 2';
+        $preset2 = new preset();
+        $preset2->set('name', $preset2name);
+        $preset2->set('category', implode(',', [$category2->id]));
+        $preset2->save();
+        $this->trigger_preset_created($preset2);
+
+        $preset3name = 'Test preset 3';
+        $preset3 = new preset();
+        $preset3->set('name', $preset3name);
+        $preset3->set('course', implode(',', [$course2->id]));
+        $preset3->set('category', implode(',', [$category2->id]));
+        $preset3->save();
+        $this->trigger_preset_created($preset3);
+        $this->execute_tasks();
+
+        $preset1cohort = $DB->get_record('cohort', ['name' => $preset1name]);
+        $this->assertNotEmpty($preset1cohort);
+
+        $preset2cohort = $DB->get_record('cohort', ['name' => $preset2name]);
+        $this->assertNotEmpty($preset2cohort);
+
+        $preset3cohort = $DB->get_record('cohort', ['name' => $preset3name]);
+        $this->assertNotEmpty($preset3cohort);
+
+        // Course 1 should have preset 1 enrolment as it has category 1.
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort', 'customint1' => $preset2cohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort', 'customint1' => $preset3cohort->id])
+        );
+
+        // Course 2 should have preset 1 enrolment as it has category 1 and preset 3 as
+        // it has course 2.
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course2->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course2->id, 'enrol' => 'cohort', 'customint1' => $preset2cohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course2->id, 'enrol' => 'cohort', 'customint1' => $preset3cohort->id])
+        );
+
+        $course1->category = $category2->id;
+        update_course($course1);
+
+        $course2->category = $category2->id;
+        update_course($course2);
+
+        $this->execute_tasks();
+
+        // After changing category course 1 should have preset 2 and preset 3 enrolment
+        // as it has category 2.
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort', 'customint1' => $preset2cohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course1->id, 'enrol' => 'cohort', 'customint1' => $preset3cohort->id])
+        );
+
+        // After changing category course 2 should have preset 2 and preset 3 enrolment
+        // as it has category 2.
+        $this->assertEmpty(
+            $DB->get_record('enrol', ['courseid' => $course2->id, 'enrol' => 'cohort', 'customint1' => $preset1cohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course2->id, 'enrol' => 'cohort', 'customint1' => $preset2cohort->id])
+        );
+        $this->assertNotEmpty(
+            $DB->get_record('enrol', ['courseid' => $course2->id, 'enrol' => 'cohort', 'customint1' => $preset3cohort->id])
         );
     }
 }

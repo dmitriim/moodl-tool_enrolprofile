@@ -102,8 +102,8 @@ class update_preset_data extends adhoc_task {
      * @param stdClass $data Categories data.
      */
     private function process_categories(stdClass $data): void {
-        $categories = $this->explode_data($data->categories);
-        $oldcategories = $this->explode_data($data->oldcategories);
+        $categories = helper::explode_data($data->categories);
+        $oldcategories = helper::explode_data($data->oldcategories);
 
         $this->update_course_lists($categories, $oldcategories, 'get_courses_by_categories');
     }
@@ -114,8 +114,8 @@ class update_preset_data extends adhoc_task {
      * @param stdClass $data Courses data.
      */
     private function process_courses(stdClass $data): void {
-        $courses = $this->explode_data($data->courses);
-        $oldcourses = $this->explode_data($data->oldcourses);
+        $courses = helper::explode_data($data->courses);
+        $oldcourses = helper::explode_data($data->oldcourses);
 
         $this->update_course_lists($courses, $oldcourses);
     }
@@ -126,20 +126,10 @@ class update_preset_data extends adhoc_task {
      * @param \stdClass $data Tags data.
      */
     private function process_tags(stdClass $data): void {
-        $tags = $this->explode_data($data->tags);
-        $oldtags = $this->explode_data($data->oldtags);
+        $tags = helper::explode_data($data->tags);
+        $oldtags = helper::explode_data($data->oldtags);
 
         $this->update_course_lists($tags, $oldtags, 'get_courses_by_tags');
-    }
-
-    /**
-     * A tiny helper method to convert list of items from string to array.
-     *
-     * @param string $data
-     * @return array
-     */
-    private function explode_data(string $data): array {
-        return !empty($data) ? explode(',', $data) : [];
     }
 
     /**
@@ -175,9 +165,6 @@ class update_preset_data extends adhoc_task {
             helper::remove_enrolment_method($itemid, $itemtype, $courseid);
         }
 
-        foreach ($this->coursesadd as $courseid) {
-            $course = get_course($courseid);
-            helper::add_enrolment_method($course, $this->cohort);
-        }
+        helper::add_enrolment_method($this->cohort, $this->coursesadd);
     }
 }

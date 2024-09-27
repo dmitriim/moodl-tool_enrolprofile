@@ -61,5 +61,21 @@ function xmldb_tool_enrolprofile_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2024091701, 'tool', 'enrolprofile');
     }
 
+    if ($oldversion < 2024091706) {
+
+        $table = new xmldb_table('tool_enrolprofile_presets');
+
+        $field = new xmldb_field('categories', XMLDB_TYPE_TEXT);
+        $dbman->rename_field($table, $field, 'category');
+
+        $field = new xmldb_field('courses', XMLDB_TYPE_TEXT);
+        $dbman->rename_field($table, $field, 'course');
+
+        $field = new xmldb_field('tags', XMLDB_TYPE_TEXT);
+        $dbman->rename_field($table, $field, 'tag');
+
+        upgrade_plugin_savepoint(true, 2024091706, 'tool', 'enrolprofile');
+    }
+
     return true;
 }

@@ -42,17 +42,17 @@ class preset extends persistent {
             'name' => [
                 'type' => PARAM_TEXT,
             ],
-            'categories' => [
+            'category' => [
                 'type' => PARAM_TEXT,
                 'default' => null,
                 'null' => NULL_ALLOWED,
             ],
-            'courses' => [
+            'course' => [
                 'type' => PARAM_TEXT,
                 'default' => null,
                 'null' => NULL_ALLOWED,
             ],
-            'tags' => [
+            'tag' => [
                 'type' => PARAM_TEXT,
                 'default' => null,
                 'null' => NULL_ALLOWED,

@@ -234,4 +234,95 @@ class helper_test extends advanced_testcase {
 
         helper::validate_task_custom_data((object)$data, $fields);
     }
+
+    /**
+     * Testing getting presets by item
+     */
+    public function test_get_presets_by_item() {
+        $this->resetAfterTest();
+
+        $category1 = $this->getDataGenerator()->create_category();
+        $category2 = $this->getDataGenerator()->create_category();
+
+        $course1 = $this->getDataGenerator()->create_course();
+        $course2 = $this->getDataGenerator()->create_course();
+
+        $tag1 = $this->getDataGenerator()->create_tag();
+        $tag2 = $this->getDataGenerator()->create_tag();
+
+        $preset1 = new preset();
+        $preset1->set('name', 'Test preset 1');
+        $preset1->set('category', implode(',', [$category1->id]));
+        $preset1->set('course', implode(',', [$course1->id]));
+        $preset1->set('tag', implode(',', [$tag1->id]));
+        $preset1->save();
+
+        $preset2 = new preset();
+        $preset2->set('name', 'Test preset 2');
+        $preset2->set('category', implode(',', [$category2->id]));
+        $preset2->set('course', implode(',', [$course2->id]));
+        $preset2->set('tag', implode(',', [$tag2->id]));
+        $preset2->save();
+
+        $preset3 = new preset();
+        $preset3->set('name', 'Test preset 3');
+        $preset3->set('category', implode(',', [$category1->id]));
+        $preset3->save();
+
+        $preset4 = new preset();
+        $preset4->set('name', 'Test preset 4');
+        $preset4->set('course', implode(',', [$course1->id]));
+        $preset4->save();
+
+        $preset5 = new preset();
+        $preset5->set('name', 'Test preset 5');
+        $preset5->set('tag', implode(',', [$tag2->id]));
+        $preset5->save();
+
+        $preset6 = new preset();
+        $preset6->set('name', 'Test preset 6');
+        $preset6->set('category', implode(',', [$category1->id, $category2->id]));
+        $preset6->set('course', implode(',', [$course1->id, $course2->id]));
+        $preset6->set('tag', implode(',', [$tag1->id, $tag2->id]));
+        $preset6->save();
+
+        $results = helper::get_presets_by_item($category1->id, helper::ITEM_TYPE_CATEGORY);
+        $this->assertCount(3, $results);
+        $this->assertArrayHasKey($preset1->get('id'), $results);
+        $this->assertArrayHasKey($preset3->get('id'), $results);
+        $this->assertArrayHasKey($preset6->get('id'), $results);
+
+        $results = helper::get_presets_by_item($category2->id, helper::ITEM_TYPE_CATEGORY);
+        $this->assertCount(2, $results);
+        $this->assertArrayHasKey($preset2->get('id'), $results);
+        $this->assertArrayHasKey($preset6->get('id'), $results);
+
+        $results = helper::get_presets_by_item($course1->id, helper::ITEM_TYPE_COURSE);
+        $this->assertCount(3, $results);
+        $this->assertArrayHasKey($preset1->get('id'), $results);
+        $this->assertArrayHasKey($preset4->get('id'), $results);
+        $this->assertArrayHasKey($preset6->get('id'), $results);
+
+        $results = helper::get_presets_by_item($course2->id, helper::ITEM_TYPE_COURSE);
+        $this->assertCount(2, $results);
+        $this->assertArrayHasKey($preset2->get('id'), $results);
+        $this->assertArrayHasKey($preset6->get('id'), $results);
+
+        $results = helper::get_presets_by_item($tag1->id, helper::ITEM_TYPE_TAG);
+        $this->assertCount(2, $results);
+        $this->assertArrayHasKey($preset1->get('id'), $results);
+        $this->assertArrayHasKey($preset6->get('id'), $results);
+
+        $results = helper::get_presets_by_item($tag2->id, helper::ITEM_TYPE_TAG);
+        $this->assertCount(3, $results);
+        $this->assertArrayHasKey($preset2->get('id'), $results);
+        $this->assertArrayHasKey($preset5->get('id'), $results);
+        $this->assertArrayHasKey($preset6->get('id'), $results);
+
+        $results = helper::get_presets_by_item(77777, helper::ITEM_TYPE_TAG);
+        $this->assertCount(0, $results);
+
+        $results = helper::get_presets_by_item($preset1->get('id'), helper::ITEM_TYPE_PRESET);
+        $this->assertCount(0, $results);
+    }
 }

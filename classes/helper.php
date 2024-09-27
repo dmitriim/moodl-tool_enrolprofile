@@ -84,15 +84,21 @@ class helper {
     public const STUDENT_ROLE = 'student';
 
     /**
+     * Cached student role object.
+     * @var stdClass
+     */
+    private static $studentrole;
+
+    /**
      * Add a new configuration item.
      *
      * @param int $itemid Item ID number
      * @param string $itemtype Item type (tag, course, category).
      * @param string $itemname Item name.
-     * @param array $courses Course to set up enrolment method. If not set, the no enrolment method will be created.
+     * @param array $courseids Course to set up enrolment method. If not set, the no enrolment method will be created.
      * @return void
      */
-    public static function add_item(int $itemid, string $itemtype, string $itemname, array $courses = []): void {
+    public static function add_item(int $itemid, string $itemtype, string $itemname, array $courseids = []): void {
         $cohort = self::get_cohort_by_item($itemid, $itemtype);
 
         if (empty($cohort)) {
@@ -114,15 +120,8 @@ class helper {
         self::add_rule($cohort, $itemtype);
         // Add a tag to a custom profile field.
         self::add_profile_field_item($itemtype, $itemname);
-
-        // Create enrolment method for the cohort for a given course.
-        if (!empty($courses)) {
-            foreach ($courses as $course) {
-                if (!empty($course)) {
-                    self::add_enrolment_method($course, $cohort);
-                }
-            }
-        }
+        // Add enrolment method for given course ids.
+        self::add_enrolment_method($cohort, $courseids);
     }
 
     /**
@@ -151,6 +150,8 @@ class helper {
             cohort_delete_cohort($cohort);
             // Delete tag value from custom profile field list.
             self::delete_profile_field_item($itemtype, $itemname);
+            // Clean up presets.
+            self::remove_item_from_presets($itemid, $itemtype);
             // Clean up user data?
         }
     }
@@ -187,7 +188,6 @@ class helper {
             // Update custom profile field.
             self::update_profile_field_item($itemtype, $oldname, $newname);
 
-            // Update users data. TODO: move to adhoc task.
             $field = $DB->get_record('user_info_field', ['shortname' => $itemtype]);
 
             if ($field) {
@@ -244,26 +244,34 @@ class helper {
     /**
      * Helper method to add enrolment method to a course.
      *
-     * @param stdClass $course Course.
      * @param stdClass $cohort Cohort.
+     * @param array $courseids A list of course ids.
      *
      * @return void
      */
-    public static function add_enrolment_method(stdClass $course, stdClass $cohort): void {
+    public static function add_enrolment_method(stdClass $cohort, array $courseids): void {
         global $DB;
 
         $studentrole = self::get_student_role();
 
-        $fields = [
-            'enrol' => 'cohort',
-            'customint1' => $cohort->id,
-            'roleid' => $studentrole->id,
-            'courseid' => $course->id,
-        ];
+        if (!empty($courseids)) {
+            list($sql, $params) = $DB->get_in_or_equal($courseids, SQL_PARAMS_NAMED);
+            $select = 'id ' . $sql;
+            $courses = $DB->get_records_select('course', $select, $params);
 
-        if (!$DB->record_exists('enrol', $fields)) {
-            $enrol = enrol_get_plugin('cohort');
-            $enrol->add_instance($course, $fields);
+            foreach ($courses as $course) {
+                $fields = [
+                    'enrol' => 'cohort',
+                    'customint1' => $cohort->id,
+                    'roleid' => $studentrole->id,
+                    'courseid' => $course->id,
+                ];
+
+                if (!$DB->record_exists('enrol', $fields)) {
+                    $enrol = enrol_get_plugin('cohort');
+                    $enrol->add_instance($course, $fields);
+                }
+            }
         }
     }
 
@@ -464,10 +472,14 @@ class helper {
      *
      * @return stdClass
      */
-    public static function get_student_role(): stdClass {
+    private static function get_student_role(): stdClass {
         global $DB;
 
-        return $DB->get_record('role', ['shortname' => self::STUDENT_ROLE]);
+        if (empty(self::$studentrole)) {
+            self::$studentrole = $DB->get_record('role', ['shortname' => self::STUDENT_ROLE]);
+        }
+
+        return self::$studentrole;
     }
 
     /**
@@ -505,13 +517,15 @@ class helper {
 
             if ($type == self::ITEM_TYPE_CATEGORY && !empty($oldcategoryidid)) {
                 self::remove_enrolment_method($oldcategoryidid, self::ITEM_TYPE_CATEGORY, $courseid);
+                $presets = self::get_presets_by_item($oldcategoryidid, self::ITEM_TYPE_CATEGORY);
+                self::remove_presets_enrolment_method($presets);
             }
         }
 
         $cohort = self::get_cohort_by_item($newcategoryid, self::ITEM_TYPE_CATEGORY);
         if ($cohort) {
-            $course = get_course($courseid);
-            self::add_enrolment_method($course, $cohort);
+            self::add_enrolment_method($cohort, [$courseid]);
+            self::add_presets_enrolment_method($newcategoryid, self::ITEM_TYPE_CATEGORY, [$courseid]);
         }
     }
 
@@ -609,5 +623,152 @@ class helper {
                           WHERE ti.itemtype = 'course' AND $where";
 
         return $DB->get_records_sql($sql, $params);
+    }
+
+    /**
+     * A tiny helper method to convert list of items from string to array.
+     *
+     * @param string|null $data
+     * @return array
+     */
+    public static function explode_data(?string $data): array {
+        return !empty($data) ? explode(',', $data) : [];
+    }
+
+    /**
+     * Get list of presets by item type and ID.
+     *
+     * @param int $itemid Item ID.
+     * @param string $itemtype Itenm type.
+     *
+     * @return preset[]
+     */
+    public static function get_presets_by_item(int $itemid, string $itemtype): array {
+        $results = [];
+
+        if (in_array($itemtype, self::get_field_types())) {
+            foreach (preset::get_records() as $preset) {
+                if (in_array($itemid, self::explode_data($preset->get($itemtype)))) {
+                    $results[$preset->get('id')] = $preset;
+                }
+            }
+        }
+
+        return  $results;
+    }
+
+    /**
+     * Get a list of field types.
+     *
+     * @return string[]
+     */
+    public static function get_field_types(): array {
+        return [self::ITEM_TYPE_CATEGORY, self::ITEM_TYPE_COURSE, self::ITEM_TYPE_TAG];
+    }
+
+    /**
+     * Get list of course IDs for a given preset.
+     *
+     * @param preset $preset Preset
+     * @return array
+     */
+    public static function get_course_ids_from_preset(preset $preset): array {
+        $courseids = [];
+
+        if (!empty($preset->get('category'))) {
+            $catcourses = array_keys(
+                self::get_courses_by_categories(explode(',', $preset->get('category')))
+            );
+
+            $courseids = array_unique(array_merge($courseids, $catcourses));
+        }
+
+        if (!empty($preset->get('course'))) {
+            $courses = explode(',', $preset->get('course'));
+            $courseids = array_unique(array_merge($courseids, $courses));
+        }
+
+        if (!empty($preset->get('tag'))) {
+            $tagcourses = array_keys(
+                self::get_courses_by_tags(explode(',', $preset->get('tag')))
+            );
+            $courseids = array_values(array_unique(array_merge($courseids, $tagcourses)));
+        }
+
+        return $courseids;
+    }
+
+    /**
+     * Removes a given item from presets.
+     *
+     * @param int $itemid Item ID.
+     * @param string $itemtype Item type (e.g. category, course or tag).
+     */
+    private static function remove_item_from_presets(int $itemid, string $itemtype): void {
+        $presets = self::get_presets_by_item($itemid, $itemtype);
+
+        foreach ($presets as $preset) {
+            $items = self::explode_data($preset->get($itemtype));
+            if (($key = array_search($itemid, $items)) !== false) {
+                unset($items[$key]);
+            }
+            $preset->set($itemtype, implode(',', $items));
+            $preset->save();
+        }
+
+        self::remove_presets_enrolment_method($presets);
+    }
+
+    /**
+     * Remove enrolment method from for a given presets from all required courses.
+     *
+     * @param array $presets List of presets.
+     */
+    public static function remove_presets_enrolment_method(array $presets): void {
+        global $DB;
+
+        foreach ($presets as $preset) {
+            $cohort = self::get_cohort_by_item($preset->get('id'), self::ITEM_TYPE_PRESET);
+            if ($cohort) {
+                $presetcourses = self::get_course_ids_from_preset($preset);
+                $studentrole = self::get_student_role();
+
+                $fields = [
+                    'enrol' => 'cohort',
+                    'customint1' => $cohort->id,
+                    'roleid' => $studentrole->id,
+                ];
+
+                $instances = $DB->get_records('enrol', $fields);
+
+                if ($instances) {
+                    $enrol = enrol_get_plugin('cohort');
+                    foreach ($instances as $instance) {
+                        // If enrolment instance belongs to a course that is no longer part of preset,
+                        // them delete this enrolment instance.
+                        if (!in_array($instance->courseid, $presetcourses)) {
+                            $enrol->delete_instance($instance);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Adds presets enrolment method for a given item.
+     *
+     * @param int $itemid Item ID.
+     * @param string $itemtype Item type.
+     * @param array $courseids Courses to add enrolment method to.
+     */
+    public static function add_presets_enrolment_method(int $itemid, string $itemtype, array $courseids = []): void {
+        $presets = self::get_presets_by_item($itemid, $itemtype);
+        foreach ($presets as $preset) {
+            $cohort = self::get_cohort_by_item($preset->get('id'), self::ITEM_TYPE_PRESET);
+            if (!empty($cohort)) {
+                self::add_enrolment_method($cohort, $courseids);
+            }
+        }
     }
 }

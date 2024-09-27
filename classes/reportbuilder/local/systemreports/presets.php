@@ -75,9 +75,9 @@ class presets extends system_report {
     protected function add_columns(): void {
         $this->add_column_from_entity('preset_entity:id');
         $this->add_column_from_entity('preset_entity:name');
-        $this->add_column_from_entity('preset_entity:categories');
-        $this->add_column_from_entity('preset_entity:courses');
-        $this->add_column_from_entity('preset_entity:tags');
+        $this->add_column_from_entity('preset_entity:category');
+        $this->add_column_from_entity('preset_entity:course');
+        $this->add_column_from_entity('preset_entity:tag');
         $this->set_initial_sort_column('preset_entity:id', SORT_ASC);
     }
 
