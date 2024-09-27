@@ -47,7 +47,7 @@ class preset_form extends dynamic_form {
 
         $this->_form->addElement('static', 'error', '');
 
-        foreach ($this->get_field_types() as $type) {
+        foreach (helper::get_field_types() as $type) {
             $methodname = 'get_'  . $type . '_options';
             $this->_form->addElement(
                 'autocomplete',
@@ -57,15 +57,6 @@ class preset_form extends dynamic_form {
                 ['noselectionstring' => get_string('choosedots'), 'multiple' => true]
             );
         }
-    }
-
-    /**
-     * Get a list of field types.
-     *
-     * @return string[]
-     */
-    protected function get_field_types(): array {
-        return ['category', 'course', 'tag'];
     }
 
     /**
@@ -132,13 +123,13 @@ class preset_form extends dynamic_form {
         $errors = parent::validation($data, $files);
 
         $empty = 0;
-        foreach ($this->get_field_types() as $type) {
+        foreach (helper::get_field_types() as $type) {
             if (empty($data[$type])) {
                 $empty++;
             }
         }
 
-        if ($empty == count($this->get_field_types())) {
+        if ($empty == count(helper::get_field_types())) {
             $errors['error'] = get_string('mustselectentities', 'tool_enrolprofile');
         }
 
@@ -178,7 +169,7 @@ class preset_form extends dynamic_form {
             $preset = new preset();
         }
 
-        foreach ($this->get_field_types() as $type) {
+        foreach (helper::get_field_types() as $type) {
             if (!empty($data->$type)) {
                 $data->$type = implode(',', $data->$type);
             } else {
@@ -197,7 +188,7 @@ class preset_form extends dynamic_form {
             'presetname' => $preset->get('name'),
         ];
 
-        foreach ($this->get_field_types() as $type) {
+        foreach (helper::get_field_types() as $type) {
             $other[$type] = $data->$type;
             $other['old' . $type] = $olddata->$type;
         }
@@ -208,7 +199,7 @@ class preset_form extends dynamic_form {
                 'other' => $other,
             ])->trigger();
         } else {
-            foreach ($this->get_field_types() as $type) {
+            foreach (helper::get_field_types() as $type) {
                 $other['old' . $type] = $olddata->$type;
             }
             preset_updated::create([

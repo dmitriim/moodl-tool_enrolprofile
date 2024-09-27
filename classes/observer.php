@@ -225,7 +225,6 @@ class observer {
      * @param course_category_deleted $event The event.
      */
     public static function course_category_deleted(course_category_deleted $event): void {
-
         $categoryid = $event->objectid;
         $categoryname = $event->other['name'];
 
@@ -242,34 +241,13 @@ class observer {
      * @param preset_created $event The event.
      */
     public static function preset_created(preset_created $event): void {
-        $courseids = [];
-
-        if (!empty($event->other['categories'])) {
-            $catcourses = array_keys(
-                helper::get_courses_by_categories(explode(',', $event->other['categories']))
-            );
-
-            $courseids = array_unique(array_merge($courseids, $catcourses));
-        }
-
-        if (!empty($event->other['courses'])) {
-            $courses = explode(',', $event->other['courses']);
-            $courseids = array_unique(array_merge($courseids, $courses));
-
-        }
-
-        if (!empty($event->other['tags'])) {
-            $tagcourses = array_keys(
-                helper::get_courses_by_tags(explode(',', $event->other['tags']))
-            );
-            $courseids = array_values(array_unique(array_merge($courseids, $tagcourses)));
-        }
+        $preset = preset::get_record(['id' => $event->other['presetid']]);
 
         self::queue_adhoc_task('add_item', [
-            'itemid' => $event->other['presetid'],
+            'itemid' => $preset->get('id'),
             'itemtype' => helper::ITEM_TYPE_PRESET,
-            'itemname' => $event->other['presetname'],
-            'courseids' => $courseids,
+            'itemname' => $preset->get('name'),
+            'courseids' => helper::get_course_ids_from_preset($preset),
         ]);
     }
 

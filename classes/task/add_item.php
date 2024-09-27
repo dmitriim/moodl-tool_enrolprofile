@@ -35,7 +35,6 @@ class add_item extends adhoc_task {
     public function execute() {
         global $DB;
 
-        $courses = [];
         $data = $this->get_custom_data();
         helper::validate_task_custom_data($data);
 
@@ -47,13 +46,13 @@ class add_item extends adhoc_task {
                 $data->courseids = [$data->courseid];
             }
 
-            if (!empty($data->courseids) && is_array($data->courseids)) {
-                list($sql, $params) = $DB->get_in_or_equal($data->courseids, SQL_PARAMS_NAMED);
-                $select = 'id ' . $sql;
-                $courses = $DB->get_records_select('course', $select, $params);
+            if (empty($data->courseids)) {
+                $data->courseids = [];
             }
 
-            helper::add_item($data->itemid, $data->itemtype, $data->itemname, $courses);
+            helper::add_item($data->itemid, $data->itemtype, $data->itemname, $data->courseids);
+            helper::add_presets_enrolment_method($data->itemid, $data->itemtype, $data->courseids);
+
             $transaction->allow_commit();
         } catch (Exception $exception) {
             $transaction->rollback($exception);

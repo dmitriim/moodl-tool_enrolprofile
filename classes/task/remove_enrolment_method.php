@@ -42,6 +42,10 @@ class remove_enrolment_method extends adhoc_task {
 
         try {
             helper::remove_enrolment_method($data->itemid, $data->itemtype, $data->courseid);
+
+            $presets = helper::get_presets_by_item($data->itemid, $data->itemtype);
+            helper::remove_presets_enrolment_method($presets);
+
             $transaction->allow_commit();
         } catch (Exception $exception) {
             $transaction->rollback($exception);
