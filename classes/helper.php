@@ -564,7 +564,7 @@ class helper {
                            FROM {tag} t
                            JOIN {tag_instance} ti ON t.id = ti.tagid
                           WHERE ti.itemtype = 'course' $where
-                       ORDER BY t.id, t.rawname";
+                       ORDER BY t.rawname, t.id";
         return $DB->get_records_sql($sql, $params);
     }
 
