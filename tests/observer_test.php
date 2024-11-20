@@ -23,6 +23,7 @@ use core\context\system;
 use core_customfield\field_controller;
 use core_tag_tag;
 use core\task\manager;
+use tool_dynamic_cohorts\condition_base;
 use tool_enrolprofile\event\preset_created;
 use tool_enrolprofile\event\preset_deleted;
 use tool_enrolprofile\event\preset_updated;
@@ -169,6 +170,26 @@ class observer_test extends advanced_testcase {
     }
 
     /**
+     * A helper method to test conditions associated with the rule.
+     *
+     * @param \stdClass $rule Rule
+     * @param array $conditions List of conditions
+     * @param string $type Type of entity.
+     * @return void
+     */
+    protected function assert_conditions(\stdClass $rule, array $conditions, string $type) {
+        $this->assertCount(2, $conditions);
+        foreach ($conditions as $record) {
+            $condition = condition_base::get_instance($record->id);
+            $configdata = $condition->get_config_data();
+            $valuename = 'profile_field_'. $type. '_value';
+            if (isset($configdata[$valuename])) {
+                $this->assertSame($rule->name, $configdata[$valuename]);
+            }
+        }
+    }
+
+    /**
      * Check logic when adding a tag.
      */
     public function test_tag_added(): void {
@@ -215,7 +236,7 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($cohort->id, $rule->cohortid);
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_TAG);
 
         $this->assertCount(3, $DB->get_records('enrol', ['courseid' => $course->id, 'enrol' => 'cohort']));
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
@@ -336,6 +357,9 @@ class observer_test extends advanced_testcase {
         $this->assertNotEmpty($rule);
         $this->assertEquals($cohort->id, $rule->cohortid);
 
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_TAG);
+
         profile_load_data($user1);
         $this->assertSame([
                 'Not tag',
@@ -402,7 +426,7 @@ class observer_test extends advanced_testcase {
         $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $tagname]);
         $this->assertNotEmpty($rule);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_TAG);
 
         core_tag_tag::delete_tags([$tag->id]);
         $this->execute_tasks();
@@ -462,7 +486,7 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($cohort->id, $rule->cohortid);
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_COURSE);
 
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
@@ -491,7 +515,7 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($cohort->id, $rule->cohortid);
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_CATEGORY);
 
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
@@ -572,6 +596,9 @@ class observer_test extends advanced_testcase {
         $this->assertNotEmpty($rule);
         $this->assertEquals($cohort->id, $rule->cohortid);
 
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_COURSE);
+
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
 
@@ -636,6 +663,9 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($cohort->id, $rule->cohortid);
         $this->assertEmpty($DB->get_record('tool_dynamic_cohorts', ['name' => $coursename]));
 
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_COURSE);
+
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
 
@@ -680,7 +710,7 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($cohort->id, $rule->cohortid);
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_COURSE);
 
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
@@ -740,7 +770,7 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($cohort->id, $rule->cohortid);
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_CATEGORY);
     }
 
     /**
@@ -777,6 +807,8 @@ class observer_test extends advanced_testcase {
         $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $categoryname]);
         $this->assertNotEmpty($rule);
         $this->assertEquals($cohort->id, $rule->cohortid);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_CATEGORY);
 
         $user1 = $this->getDataGenerator()->create_user();
         profile_save_data((object)[
@@ -840,6 +872,9 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($cohort->id, $rule->cohortid);
         $this->assertEmpty($DB->get_record('cohort', ['name' => $categoryname]));
 
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_CATEGORY);
+
         profile_load_data($user1);
         $this->assertSame([
                 'Not category',
@@ -885,7 +920,7 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($cohort->id, $rule->cohortid);
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_CATEGORY);
 
         $enrol = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'cohort', 'customint1' => $cohort->id]);
         $this->assertNotEmpty($enrol);
@@ -969,7 +1004,7 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($presetcohort->id, $rule->cohortid);
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_PRESET);
 
         $this->assertNotEmpty(
             $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
@@ -1016,7 +1051,7 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($presetcohort->id, $rule->cohortid);
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_PRESET);
 
         $this->assertNotEmpty(
             $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
@@ -1064,7 +1099,7 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($presetcohort->id, $rule->cohortid);
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_PRESET);
 
         $this->assertNotEmpty(
             $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
@@ -1114,7 +1149,7 @@ class observer_test extends advanced_testcase {
         $this->assertEquals($presetcohort->id, $rule->cohortid);
         $this->assertEquals(1, $rule->enabled);
         $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
-        $this->assertCount(2, $conditions);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_PRESET);
 
         $this->assertNotEmpty(
             $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
@@ -1173,6 +1208,8 @@ class observer_test extends advanced_testcase {
         $rule = $DB->get_record('tool_dynamic_cohorts', ['name' => $presetname]);
         $this->assertNotEmpty($rule);
         $this->assertEquals($presetcohort->id, $rule->cohortid);
+        $conditions = $DB->get_records('tool_dynamic_cohorts_c', ['ruleid' => $rule->id]);
+        $this->assert_conditions($rule, $conditions, helper::ITEM_TYPE_PRESET);
 
         $this->assertNotEmpty(
             $DB->get_record('enrol', ['courseid' => $course11->id, 'enrol' => 'cohort', 'customint1' => $presetcohort->id])
