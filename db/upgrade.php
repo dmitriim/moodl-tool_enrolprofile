@@ -77,5 +77,37 @@ function xmldb_tool_enrolprofile_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2024091706, 'tool', 'enrolprofile');
     }
 
+    if ($oldversion < 2024091710) {
+        $rules = \tool_dynamic_cohorts\rule::get_records();
+        foreach ($rules as $rule) {
+            foreach ($rule->get_condition_records() as $condition) {
+                $instance = \tool_dynamic_cohorts\condition_base::get_instance($condition->get('id'));
+                $configdata = $instance->get_config_data();
+
+                if ($configdata['profilefield'] == 'profile_field_enrolleduntil') {
+                    continue;
+                }
+
+                $fields = [
+                    'profile_field_tag_value',
+                    'profile_field_course_value',
+                    'profile_field_category_value',
+                    'profile_field_preset_value',
+                ];
+
+                foreach ($fields as $field) {
+                    if (!empty($configdata[$field]) && $configdata[$field] != $rule->get('name')) {
+                        $configdata[$field] = $rule->get('name');
+                        $instance->set_config_data($configdata);
+                        $instance->get_record()->save();
+                    }
+                }
+            }
+        }
+
+        // Dynamic_cohorts savepoint reached.
+        upgrade_plugin_savepoint(true, 2024091710, 'tool', 'enrolprofile');
+    }
+
     return true;
 }

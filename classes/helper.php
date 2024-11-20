@@ -181,6 +181,18 @@ class helper {
             // Update rule with a new name.
             $rule = rule::get_record(['cohortid' => $cohort->id]);
             if ($rule) {
+                // Update rule conditions.
+                foreach ($rule->get_condition_records() as $condition) {
+                    $instance = condition_base::get_instance(0, $condition->to_record());
+                    $configdata = $instance->get_config_data();
+                    $valuename = 'profile_field_'. $itemtype. '_value';
+                    if (isset($configdata[$valuename])) {
+                        $configdata[$valuename] = $newname;
+                        $instance->set_config_data($configdata);
+                        $instance->get_record()->save();
+                    }
+                }
+
                 $rule->set('name', $newname);
                 $rule->save();
             }

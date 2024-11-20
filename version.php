@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'tool_enrolprofile';
-$plugin->release = '0.1.0';
-$plugin->version = 2024091706;
+$plugin->release = 2024091710;
+$plugin->version = 2024091710;
 $plugin->requires = 2022112800;
 $plugin->maturity = MATURITY_ALPHA;
 $plugin->supported = [404, 404];
